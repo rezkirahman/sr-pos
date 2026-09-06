@@ -54,6 +54,7 @@ export function Header({ user }: HeaderProps) {
           <Button
             variant="ghost"
             size="icon"
+            rounded="full"
             type="submit"
             className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             title="Keluar / Logout"

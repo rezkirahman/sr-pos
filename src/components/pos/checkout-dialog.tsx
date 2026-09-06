@@ -280,10 +280,11 @@ export function CheckoutDialog({
             </div>
           )}
 
-          <DialogFooter className="pt-2">
+          <DialogFooter className="pt-2 gap-2 sm:gap-0">
             <Button
               type="button"
               variant="outline"
+              rounded="full"
               onClick={() => onOpenChange(false)}
               disabled={loading}
             >
@@ -291,8 +292,9 @@ export function CheckoutDialog({
             </Button>
             <Button
               type="submit"
+              rounded="full"
               disabled={loading || (paymentType === PaymentType.CASH && isCashInsufficient)}
-              className="font-semibold shadow"
+              className="font-semibold shadow px-6"
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Konfirmasi & Selesai

@@ -105,12 +105,14 @@ export function ReceiptModal({
         <DialogFooter className="flex-col sm:flex-row gap-2 pt-2">
           <Button
             variant="outline"
+            rounded="full"
             onClick={() => window.print()}
             className="w-full sm:w-auto gap-1 text-xs"
           >
             <Printer className="h-3.5 w-3.5" /> Cetak Nota
           </Button>
           <Button
+            rounded="full"
             onClick={() => {
               onOpenChange(false);
               onNewTransaction();

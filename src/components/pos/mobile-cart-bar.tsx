@@ -59,7 +59,7 @@ export function MobileCartBar({
           </div>
 
           <SheetTrigger asChild>
-            <Button className="h-10 px-4 text-xs font-semibold gap-1.5 shadow">
+            <Button rounded="full" className="h-10 px-4 text-xs font-semibold gap-1.5 shadow">
               <span>Lihat Keranjang</span>
               <ChevronUp className="h-4 w-4" />
             </Button>

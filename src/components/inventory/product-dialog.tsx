@@ -229,16 +229,17 @@ export function ProductDialog({
             </div>
           </div>
 
-          <DialogFooter className="pt-2">
+          <DialogFooter className="pt-2 gap-2 sm:gap-0">
             <Button
               type="button"
               variant="outline"
+              rounded="full"
               onClick={() => onOpenChange(false)}
               disabled={loading}
             >
               Batal
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" rounded="full" disabled={loading} className="font-semibold shadow px-6">
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isEditing ? "Perbarui Barang" : "Simpan Barang"}
             </Button>

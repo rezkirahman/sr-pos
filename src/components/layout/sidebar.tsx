@@ -79,16 +79,16 @@ export function Sidebar({ role }: SidebarProps) {
           <Paintbrush className="h-5 w-5" />
         </div>
         <div className="flex flex-col">
-          <span className="font-bold text-sm tracking-tight leading-none">
+          <span className="font-heading font-bold text-base tracking-tight leading-none">
             Sumber Rejeki
           </span>
-          <span className="text-[11px] text-muted-foreground mt-0.5">
+          <span className="text-[11px] text-muted-foreground mt-1">
             Toko Cat & Bangunan
           </span>
         </div>
       </div>
 
-      <nav className="flex-1 space-y-1.5 p-4">
+      <nav className="flex-1 space-y-1.5 p-3.5">
         {navItems.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
@@ -97,10 +97,10 @@ export function Sidebar({ role }: SidebarProps) {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium transition-all",
+                "flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium transition-all",
                 isActive
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                  ? "bg-primary text-primary-foreground shadow-sm font-semibold"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >
               <Icon className="h-4 w-4 shrink-0" />

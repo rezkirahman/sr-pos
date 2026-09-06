@@ -57,13 +57,13 @@ export function FinancialSummary({ summary }: FinancialSummaryProps) {
       </Card>
 
       {/* Saldo Kas Bersih */}
-      <Card className="border-l-4 border-l-blue-500 shadow-sm">
+      <Card className="border-l-4 border-l-primary shadow-sm">
         <CardHeader className="p-4 pb-1">
           <div className="flex items-center justify-between">
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Saldo Kas Bersih
             </CardTitle>
-            <Wallet className="h-4 w-4 text-blue-500" />
+            <Wallet className="h-4 w-4 text-primary" />
           </div>
         </CardHeader>
         <CardContent className="p-4 pt-1">

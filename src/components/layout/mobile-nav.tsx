@@ -86,7 +86,7 @@ export function MobileNav({ role }: MobileNavProps) {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" size="icon" className="md:hidden h-9 w-9">
+        <Button variant="outline" size="icon" rounded="full" className="md:hidden h-9 w-9">
           <Menu className="h-5 w-5" />
           <span className="sr-only">Buka Menu</span>
         </Button>
@@ -98,13 +98,13 @@ export function MobileNav({ role }: MobileNavProps) {
               <Paintbrush className="h-5 w-5" />
             </div>
             <div>
-              <SheetTitle className="text-base font-bold">Sumber Rejeki</SheetTitle>
+              <SheetTitle className="font-heading text-base font-bold">Sumber Rejeki</SheetTitle>
               <div className="text-xs text-muted-foreground">Toko Cat & Bangunan</div>
             </div>
           </div>
         </SheetHeader>
 
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto">
           {navItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
             const Icon = item.icon;
@@ -114,10 +114,10 @@ export function MobileNav({ role }: MobileNavProps) {
                 href={item.href}
                 onClick={() => setOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3.5 py-3 text-sm font-medium transition-colors",
+                  "flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium transition-colors",
                   isActive
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    ? "bg-primary text-primary-foreground shadow-sm font-semibold"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
                 <Icon className="h-5 w-5 shrink-0" />

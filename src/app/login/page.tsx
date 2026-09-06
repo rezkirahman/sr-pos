@@ -105,7 +105,8 @@ export default function LoginPage() {
           <CardFooter className="flex flex-col gap-3 pt-2">
             <Button
               type="submit"
-              className="w-full h-10 font-semibold"
+              rounded="full"
+              className="w-full h-11 font-semibold text-sm shadow"
               disabled={isLoading}
             >
               {isLoading ? (

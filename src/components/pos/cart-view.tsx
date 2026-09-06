@@ -131,6 +131,7 @@ export function CartView({
         <Button
           onClick={onCheckout}
           disabled={items.length === 0}
+          rounded="full"
           className="w-full h-11 text-sm font-semibold gap-2 shadow"
         >
           <span>Lanjut ke Pembayaran</span>

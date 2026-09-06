@@ -99,6 +99,7 @@ export function ProductTable({
                       <Button
                         variant="ghost"
                         size="icon"
+                        rounded="full"
                         className="h-8 w-8 text-muted-foreground hover:text-foreground"
                         title="Lihat Kartu Stok"
                         onClick={() => setSelectedProductForMovement(p)}
@@ -111,6 +112,7 @@ export function ProductTable({
                           <Button
                             variant="ghost"
                             size="icon"
+                            rounded="full"
                             className="h-8 w-8 text-muted-foreground hover:text-amber-500"
                             title="Penyesuaian Stok (Opname)"
                             onClick={() => setSelectedProductForAdj(p)}
@@ -120,6 +122,7 @@ export function ProductTable({
                           <Button
                             variant="ghost"
                             size="icon"
+                            rounded="full"
                             className="h-8 w-8 text-muted-foreground hover:text-primary"
                             title="Edit Data Barang"
                             onClick={() => setSelectedProductForEdit(p)}

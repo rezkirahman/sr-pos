@@ -1,0 +1,154 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  OWNER
+  CASHIER
+}
+
+enum PaymentType {
+  CASH
+  TRANSFER
+  DEBT
+}
+
+enum MovementType {
+  IN
+  OUT
+  ADJUSTMENT
+}
+
+enum DebtType {
+  RECEIVABLE // Piutang (Pelanggan berhutang ke Toko)
+  DEBT       // Hutang (Toko berhutang ke Supplier)
+}
+
+enum DebtStatus {
+  UNPAID
+  PARTIAL
+  PAID
+}
+
+enum CashFlowType {
+  INCOME
+  EXPENSE
+}
+
+model User {
+  id           String          @id @default(cuid())
+  name         String
+  username     String          @unique
+  passwordHash String
+  role         Role            @default(CASHIER)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  transactions Transaction[]
+  movements    StockMovement[]
+  cashFlows    CashFlow[]
+}
+
+model Product {
+  id            String            @id @default(cuid())
+  sku           String?           @unique
+  name          String
+  category      String
+  unit          String            // Kaleng, Galon, Pail, Sak, Dus, Pcs, Meter
+  purchasePrice Float             // Harga modal / HPP (Khusus Owner)
+  sellingPrice  Float             // Harga jual eceran
+  stock         Int               @default(0)
+  minStockAlert Int               @default(5)
+  isActive      Boolean           @default(true)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  items         TransactionItem[]
+  movements     StockMovement[]
+}
+
+model StockMovement {
+  id          String       @id @default(cuid())
+  productId   String
+  product     Product      @relation(fields: [productId], references: [id])
+  type        MovementType // IN, OUT, ADJUSTMENT
+  quantity    Int
+  stockBefore Int
+  stockAfter  Int
+  notes       String?
+  referenceId String?      // ID Transaksi penjualan / ID Pembelian
+  createdById String
+  createdBy   User         @relation(fields: [createdById], references: [id])
+  createdAt   DateTime     @default(now())
+}
+
+model Transaction {
+  id             String            @id @default(cuid())
+  invoiceNumber  String            @unique
+  customerName   String?
+  paymentType    PaymentType
+  totalAmount    Float
+  cashReceived   Float?
+  changeAmount   Float?
+  createdById    String
+  createdBy      User              @relation(fields: [createdById], references: [id])
+  createdAt      DateTime          @default(now())
+  items          TransactionItem[]
+  debtReceivable DebtReceivable?
+}
+
+model TransactionItem {
+  id                String      @id @default(cuid())
+  transactionId     String
+  transaction       Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  productId         String
+  product           Product     @relation(fields: [productId], references: [id])
+  quantity          Int
+  unitPrice         Float
+  costPriceSnapshot Float       // Snapshot HPP saat transaksi terjadi
+  subtotal          Float
+}
+
+model CashFlow {
+  id          String       @id @default(cuid())
+  type        CashFlowType // INCOME, EXPENSE
+  category    String       // Penjualan, Operasional, Kulakan, Pelunasan
+  amount      Float
+  description String
+  referenceId String?
+  createdById String
+  createdBy   User         @relation(fields: [createdById], references: [id])
+  createdAt   DateTime     @default(now())
+}
+
+model DebtReceivable {
+  id              String        @id @default(cuid())
+  type            DebtType      // RECEIVABLE (Piutang) atau DEBT (Hutang Toko)
+  contactName     String        // Nama Tukang / Nama Supplier
+  contactPhone    String?
+  transactionId   String?       @unique
+  transaction     Transaction?  @relation(fields: [transactionId], references: [id])
+  totalAmount     Float
+  paidAmount      Float         @default(0)
+  remainingAmount Float
+  dueDate         DateTime
+  status          DebtStatus    @default(UNPAID)
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  payments        DebtPayment[]
+}
+
+model DebtPayment {
+  id               String         @id @default(cuid())
+  debtReceivableId String
+  debtReceivable   DebtReceivable @relation(fields: [debtReceivableId], references: [id], onDelete: Cascade)
+  amount           Float
+  paymentDate      DateTime       @default(now())
+  paymentMethod    String         // Tunai / Transfer
+  notes            String?
+  createdAt        DateTime       @default(now())
+}

@@ -18,18 +18,27 @@ export function StockMovementDrawer({
   onOpenChange,
   product,
 }: StockMovementDrawerProps) {
+  const [cachedProduct, setCachedProduct] = useState(product);
   const [movements, setMovements] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (product && open) {
+    if (product) {
+      setCachedProduct(product);
+    }
+  }, [product]);
+
+  const activeProduct = product || cachedProduct;
+
+  useEffect(() => {
+    if (activeProduct && open) {
       setLoading(true);
-      getStockMovements(product.id)
+      getStockMovements(activeProduct.id)
         .then((data) => setMovements(data))
         .catch(() => setMovements([]))
         .finally(() => setLoading(false));
     }
-  }, [product, open]);
+  }, [activeProduct, open]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -37,7 +46,7 @@ export function StockMovementDrawer({
         <SheetHeader className="p-6 border-b text-left">
           <SheetTitle className="text-base font-bold">Kartu Riwayat Stok</SheetTitle>
           <SheetDescription className="text-xs">
-            {product?.name} ({product?.unit})
+            {activeProduct?.name || "-"} ({activeProduct?.unit || "-"})
           </SheetDescription>
         </SheetHeader>
 
@@ -98,7 +107,7 @@ export function StockMovementDrawer({
                           : "text-foreground font-bold"
                       }
                     >
-                      {isIn ? `+${m.quantity}` : isOut ? `-${m.quantity}` : `? ${m.quantity}`} {product.unit}
+                      {isIn ? `+${m.quantity}` : isOut ? `-${m.quantity}` : `Δ ${m.quantity}`} {activeProduct?.unit || ""}
                     </strong>
                   </div>
 

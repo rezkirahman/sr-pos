@@ -21,6 +21,7 @@ export function StockAdjustmentDialog({
   product,
   onSuccess,
 }: StockAdjustmentDialogProps) {
+  const [cachedProduct, setCachedProduct] = useState(product);
   const [actualStock, setActualStock] = useState("");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
@@ -28,26 +29,28 @@ export function StockAdjustmentDialog({
 
   React.useEffect(() => {
     if (product) {
+      setCachedProduct(product);
       setActualStock(String(product.stock));
       setNotes("");
     }
     setError(null);
   }, [product, open]);
 
-  const current = product?.stock || 0;
+  const activeProduct = product || cachedProduct;
+  const current = activeProduct?.stock || 0;
   const physical = Number(actualStock || 0);
   const diff = physical - current;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!product) return;
+    if (!activeProduct) return;
 
     setLoading(true);
     setError(null);
 
     try {
       await adjustStock({
-        productId: product.id,
+        productId: activeProduct.id,
         actualStock: physical,
         notes: notes.trim(),
       });
@@ -68,7 +71,7 @@ export function StockAdjustmentDialog({
           <DialogTitle>Penyesuaian Stok (Stock Opname)</DialogTitle>
         </DialogHeader>
 
-        {product && (
+        {activeProduct && (
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
               <div className="p-3 text-xs bg-destructive/15 text-destructive rounded-md">
@@ -77,13 +80,13 @@ export function StockAdjustmentDialog({
             )}
 
             <div className="p-3 rounded-lg bg-muted/60 text-sm space-y-1">
-              <div className="font-semibold text-foreground">{product.name}</div>
+              <div className="font-semibold text-foreground">{activeProduct.name}</div>
               <div className="text-xs text-muted-foreground">
-                SKU: {product.sku || "-"} � Satuan: {product.unit}
+                SKU: {activeProduct.sku || "-"} • Satuan: {activeProduct.unit}
               </div>
               <div className="text-xs pt-1 flex justify-between">
                 <span>Stok Tercatat di Sistem:</span>
-                <strong className="text-foreground">{current} {product.unit}</strong>
+                <strong className="text-foreground">{current} {activeProduct.unit}</strong>
               </div>
             </div>
 
@@ -110,7 +113,7 @@ export function StockAdjustmentDialog({
                       : "text-muted-foreground"
                   }
                 >
-                  {diff > 0 ? `+${diff}` : diff} {product.unit}
+                  {diff > 0 ? `+${diff}` : diff} {activeProduct.unit}
                 </span>
               </div>
             </div>

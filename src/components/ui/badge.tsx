@@ -25,9 +25,17 @@ const badgeVariants = cva(
         danger:
           "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30",
       },
+      rounded: {
+        default: "rounded-full",
+        full: "rounded-full",
+        md: "rounded-md",
+        lg: "rounded-lg",
+        "4xl": "rounded-4xl",
+      },
     },
     defaultVariants: {
       variant: "default",
+      rounded: "default",
     },
   }
 )
@@ -35,6 +43,7 @@ const badgeVariants = cva(
 function Badge({
   className,
   variant = "default",
+  rounded = "default",
   asChild = false,
   ...props
 }: React.ComponentProps<"span"> &
@@ -45,7 +54,8 @@ function Badge({
     <Comp
       data-slot="badge"
       data-variant={variant}
-      className={cn(badgeVariants({ variant }), className)}
+      data-rounded={rounded}
+      className={cn(badgeVariants({ variant, rounded, className }))}
       {...props}
     />
   )

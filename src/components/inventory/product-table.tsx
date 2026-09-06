@@ -66,7 +66,9 @@ export function ProductTable({
                     <div className="flex items-center gap-1.5">
                       <span>{p.name}</span>
                       {isLow && (
-                        <AlertTriangle className="h-3.5 w-3.5 text-amber-500" title="Stok Menipis" />
+                        <span title="Stok Menipis">
+                          <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                        </span>
                       )}
                     </div>
                   </TableCell>
@@ -151,7 +153,7 @@ export function ProductTable({
                   <div className="text-xs font-mono text-muted-foreground">{p.sku || "Tanpa SKU"}</div>
                   <div className="font-semibold text-sm leading-snug mt-0.5">{p.name}</div>
                   <div className="text-xs text-muted-foreground mt-0.5">
-                    {p.category} • Satuan: {p.unit}
+                    {p.category} ï¿½ Satuan: {p.unit}
                   </div>
                 </div>
                 <Badge

@@ -79,7 +79,7 @@ export function StockAdjustmentDialog({
             <div className="p-3 rounded-lg bg-muted/60 text-sm space-y-1">
               <div className="font-semibold text-foreground">{product.name}</div>
               <div className="text-xs text-muted-foreground">
-                SKU: {product.sku || "-"} • Satuan: {product.unit}
+                SKU: {product.sku || "-"} ï¿½ Satuan: {product.unit}
               </div>
               <div className="text-xs pt-1 flex justify-between">
                 <span>Stok Tercatat di Sistem:</span>

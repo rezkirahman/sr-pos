@@ -112,7 +112,7 @@ export function Sidebar({ role }: SidebarProps) {
 
       <div className="p-4 border-t text-xs text-muted-foreground">
         <div>Hak Akses: <strong className="text-foreground">{role}</strong></div>
-        <div className="text-[10px] mt-0.5 text-muted-foreground/70">v1.0.0 • Sumber Rejeki POS</div>
+        <div className="text-[10px] mt-0.5 text-muted-foreground/70">v1.0.0 ï¿½ Sumber Rejeki POS</div>
       </div>
     </aside>
   );

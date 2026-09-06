@@ -1,9 +1,4 @@
-import { type ClassValue, clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+export { cn } from "cn";
 
 export function formatRupiah(amount: number): string {
   return new Intl.NumberFormat("id-ID", {
@@ -13,3 +8,4 @@ export function formatRupiah(amount: number): string {
     maximumFractionDigits: 0,
   }).format(amount);
 }
+

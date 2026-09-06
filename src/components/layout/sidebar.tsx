@@ -73,8 +73,8 @@ export function Sidebar({ role }: SidebarProps) {
   ];
 
   return (
-    <aside className="hidden md:flex md:w-64 md:flex-col border-r bg-card/60 backdrop-blur shrink-0 min-h-screen">
-      <div className="flex h-16 items-center gap-3 border-b px-6">
+    <aside className="hidden md:flex md:w-64 md:flex-col border-r bg-card/80 backdrop-blur shrink-0 sticky top-0 h-screen z-30">
+      <div className="flex h-16 items-center gap-3 border-b px-6 shrink-0">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow">
           <Paintbrush className="h-5 w-5" />
         </div>
@@ -88,7 +88,7 @@ export function Sidebar({ role }: SidebarProps) {
         </div>
       </div>
 
-      <nav className="flex-1 space-y-1.5 p-3.5">
+      <nav className="flex-1 space-y-1.5 p-3.5 overflow-y-auto">
         {navItems.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
@@ -110,9 +110,9 @@ export function Sidebar({ role }: SidebarProps) {
         })}
       </nav>
 
-      <div className="p-4 border-t text-xs text-muted-foreground">
+      <div className="p-4 border-t text-xs text-muted-foreground shrink-0">
         <div>Hak Akses: <strong className="text-foreground">{role}</strong></div>
-        <div className="text-[10px] mt-0.5 text-muted-foreground/70">v1.0.0 � Sumber Rejeki POS</div>
+        <div className="text-[10px] mt-0.5 text-muted-foreground/70">v1.0.0 • Sumber Rejeki POS</div>
       </div>
     </aside>
   );

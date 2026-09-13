@@ -11,6 +11,7 @@ interface ReceiptModalProps {
   onOpenChange: (open: boolean) => void;
   transaction: any;
   onNewTransaction: () => void;
+  storeName?: string;
 }
 
 export function ReceiptModal({
@@ -18,6 +19,7 @@ export function ReceiptModal({
   onOpenChange,
   transaction,
   onNewTransaction,
+  storeName,
 }: ReceiptModalProps) {
   if (!transaction) return null;
 
@@ -43,7 +45,7 @@ export function ReceiptModal({
         {/* Receipt Box */}
         <div className="rounded-lg border bg-muted/30 p-4 space-y-3 font-mono text-xs">
           <div className="text-center border-b pb-2 space-y-0.5">
-            <div className="font-bold text-sm font-sans">SUMBER REJEKI</div>
+            <div className="font-bold text-sm font-sans uppercase">{storeName || "SUMBER REJEKI"}</div>
             <div className="text-[11px] text-muted-foreground">Toko Cat & Bangunan</div>
             <div className="text-[10px] text-muted-foreground">{dateFormatted}</div>
           </div>

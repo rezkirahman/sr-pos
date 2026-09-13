@@ -231,3 +231,53 @@ export async function getCategories(): Promise<string[]> {
   });
   return products.map((p) => p.category);
 }
+
+export async function deleteProduct(productId: string) {
+  const session = await requirePermission("inventory", "delete");
+
+  const whereClause: any = { id: productId };
+  if (session.storeId) {
+    whereClause.storeId = session.storeId;
+  }
+
+  const product = await prisma.product.findFirst({
+    where: whereClause,
+    include: {
+      _count: {
+        select: {
+          items: true,
+          movements: true,
+        },
+      },
+    },
+  });
+
+  if (!product) {
+    throw new Error("Barang tidak ditemukan di toko ini.");
+  }
+
+  // If already involved in sales transactions, soft-deactivate to protect financial history
+  if (product._count.items > 0) {
+    await prisma.product.update({
+      where: { id: productId },
+      data: { isActive: false },
+    });
+    revalidatePath("/inventory");
+    revalidatePath("/pos");
+    return { success: true, message: "Produk dinonaktifkan karena telah memiliki riwayat transaksi." };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.stockMovement.deleteMany({
+      where: { productId },
+    });
+    await tx.product.delete({
+      where: { id: productId },
+    });
+  });
+
+  revalidatePath("/inventory");
+  revalidatePath("/pos");
+  return { success: true, message: "Produk berhasil dihapus." };
+}
+

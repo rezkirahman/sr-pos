@@ -13,6 +13,10 @@ export default async function PosPage() {
   const categories = await getCategories();
 
   return (
-    <PosClient initialProducts={products} categories={categories} />
+    <PosClient
+      initialProducts={products}
+      categories={categories}
+      storeName={session.storeName || "Toko POS"}
+    />
   );
 }

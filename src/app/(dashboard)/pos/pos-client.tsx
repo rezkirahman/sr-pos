@@ -16,9 +16,10 @@ import { getProducts } from "@/actions/product";
 interface PosClientProps {
   initialProducts: any[];
   categories: string[];
+  storeName?: string;
 }
 
-export function PosClient({ initialProducts, categories }: PosClientProps) {
+export function PosClient({ initialProducts, categories, storeName }: PosClientProps) {
   const [products, setProducts] = useState(initialProducts);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [search, setSearch] = useState("");
@@ -291,6 +292,7 @@ export function PosClient({ initialProducts, categories }: PosClientProps) {
         onOpenChange={(open) => !open && setCompletedTransaction(null)}
         transaction={completedTransaction}
         onNewTransaction={() => setCompletedTransaction(null)}
+        storeName={storeName}
       />
     </div>
   );

@@ -62,8 +62,13 @@ export async function checkoutTransaction(input: CheckoutInput) {
     );
 
     let changeAmount = 0;
-    if (parsed.paymentType === PaymentType.CASH && parsed.cashReceived) {
-      changeAmount = Math.max(0, parsed.cashReceived - totalAmount);
+    if (parsed.paymentType === PaymentType.CASH) {
+      if (parsed.cashReceived === undefined || parsed.cashReceived === null || parsed.cashReceived < totalAmount) {
+        throw new Error(
+          `Nominal uang tunai (${parsed.cashReceived || 0}) kurang dari total transaksi (${totalAmount}).`
+        );
+      }
+      changeAmount = parsed.cashReceived - totalAmount;
     }
 
     // 4. Create Transaction Record

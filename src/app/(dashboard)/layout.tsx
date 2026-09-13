@@ -16,7 +16,11 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
-      <Sidebar role={session.role} />
+      <Sidebar
+        permissions={session.permissions}
+        roleCode={session.roleCode}
+        roleName={session.roleName}
+      />
       <div className="flex flex-1 flex-col min-w-0">
         <Header user={session} />
         <main className="flex-1 p-4 md:p-6 pb-24 md:pb-6">

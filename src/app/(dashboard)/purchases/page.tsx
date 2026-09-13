@@ -1,7 +1,6 @@
-import { getSession } from "@/lib/auth";
+import { getSession, userHasPermission } from "@/lib/auth";
 import { getProducts } from "@/actions/product";
 import { getRecentPurchases } from "@/actions/purchase";
-import { Role } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { PurchasesClient } from "./purchases-client";
 
@@ -11,7 +10,7 @@ export default async function PurchasesPage() {
     redirect("/login");
   }
 
-  if (session.role !== Role.OWNER) {
+  if (!userHasPermission(session, "purchases", "view")) {
     redirect("/pos");
   }
 

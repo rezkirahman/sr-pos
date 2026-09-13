@@ -8,17 +8,10 @@ const JWT_SECRET = new TextEncoder().encode(
 
 const COOKIE_SESSION_NAME = "sr_pos_session";
 
-const OWNER_ONLY_PATHS = [
-  "/dashboard",
-  "/purchases",
-  "/cashflow",
-  "/users",
-];
-
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Ignore internal assets
+  // Ignore internal assets & api
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
@@ -28,31 +21,44 @@ export async function middleware(request: NextRequest) {
   }
 
   const token = request.cookies.get(COOKIE_SESSION_NAME)?.value;
-  let session = null;
+  let session: {
+    id: string;
+    name: string;
+    username: string;
+    roleCode: string;
+    permissions?: Array<{ module: string; canView: boolean }>;
+  } | null = null;
 
   if (token) {
     try {
       const { payload } = await jwtVerify(token, JWT_SECRET);
-      session = payload as { id: string; name: string; username: string; role: string };
+      session = payload as any;
     } catch {
       session = null;
     }
   }
+
+  const getDefaultRedirect = () => {
+    if (!session) return "/login";
+    if (session.roleCode === "SUPERADMIN") return "/master";
+    const canViewDashboard = session.permissions?.some(
+      (p) => p.module === "dashboard" && p.canView
+    );
+    return canViewDashboard ? "/dashboard" : "/pos";
+  };
 
   // Handle Root Path /
   if (pathname === "/") {
     if (!session) {
       return NextResponse.redirect(new URL("/login", request.url));
     }
-    const target = session.role === "OWNER" ? "/dashboard" : "/pos";
-    return NextResponse.redirect(new URL(target, request.url));
+    return NextResponse.redirect(new URL(getDefaultRedirect(), request.url));
   }
 
   // If on login page
   if (pathname === "/login") {
     if (session) {
-      const target = session.role === "OWNER" ? "/dashboard" : "/pos";
-      return NextResponse.redirect(new URL(target, request.url));
+      return NextResponse.redirect(new URL(getDefaultRedirect(), request.url));
     }
     return NextResponse.next();
   }
@@ -62,11 +68,36 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Guard Owner-only pages
-  if (session.role !== "OWNER") {
-    const isOwnerOnly = OWNER_ONLY_PATHS.some((path) => pathname.startsWith(path));
-    if (isOwnerOnly) {
-      return NextResponse.redirect(new URL("/pos", request.url));
+  // Guard Master-only pages (/master/*)
+  if (pathname.startsWith("/master")) {
+    if (session.roleCode !== "SUPERADMIN") {
+      return NextResponse.redirect(new URL(getDefaultRedirect(), request.url));
+    }
+    return NextResponse.next();
+  }
+
+  // If Superadmin visits store routes, let them through
+  if (session.roleCode === "SUPERADMIN") {
+    return NextResponse.next();
+  }
+
+  // Map module to path prefixes
+  const modulePathMap: Record<string, string> = {
+    "/dashboard": "dashboard",
+    "/pos": "pos",
+    "/inventory": "inventory",
+    "/purchases": "purchases",
+    "/debts": "debts",
+    "/cashflow": "cashflow",
+    "/users": "users",
+  };
+
+  for (const [prefix, moduleName] of Object.entries(modulePathMap)) {
+    if (pathname.startsWith(prefix)) {
+      const perm = session.permissions?.find((p) => p.module === moduleName);
+      if (!perm?.canView) {
+        return NextResponse.redirect(new URL(getDefaultRedirect(), request.url));
+      }
     }
   }
 

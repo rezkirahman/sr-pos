@@ -1,21 +1,22 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { DebtType, DebtStatus, CashFlowType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 export async function getDebtsSummary() {
-  const session = await getSession();
-  if (!session) {
-    throw new Error("UNAUTHORIZED");
+  const session = await requirePermission("debts", "view");
+
+  const whereClause: any = {
+    status: { in: [DebtStatus.UNPAID, DebtStatus.PARTIAL] },
+  };
+  if (session.storeId) {
+    whereClause.storeId = session.storeId;
   }
 
   const allUnpaid = await prisma.debtReceivable.findMany({
-    where: {
-      storeId: session.storeId,
-      status: { in: [DebtStatus.UNPAID, DebtStatus.PARTIAL] },
-    },
+    where: whereClause,
   });
 
   const totalReceivables = allUnpaid
@@ -42,16 +43,15 @@ export async function getDebtsSummary() {
 }
 
 export async function getDebts(type: DebtType) {
-  const session = await getSession();
-  if (!session) {
-    throw new Error("UNAUTHORIZED");
+  const session = await requirePermission("debts", "view");
+
+  const whereClause: any = { type };
+  if (session.storeId) {
+    whereClause.storeId = session.storeId;
   }
 
   return await prisma.debtReceivable.findMany({
-    where: {
-      storeId: session.storeId,
-      type,
-    },
+    where: whereClause,
     include: {
       transaction: true,
       payments: {
@@ -71,21 +71,20 @@ export async function recordDebtPayment(
   paymentMethod: string = "Tunai",
   notes?: string
 ) {
-  const session = await getSession();
-  if (!session) {
-    throw new Error("UNAUTHORIZED");
-  }
+  const session = await requirePermission("debts", "update");
 
   if (amount <= 0) {
     throw new Error("Nominal pembayaran harus lebih dari 0.");
   }
 
   const result = await prisma.$transaction(async (tx) => {
+    const whereClause: any = { id: debtId };
+    if (session.storeId) {
+      whereClause.storeId = session.storeId;
+    }
+
     const debt = await tx.debtReceivable.findFirst({
-      where: {
-        id: debtId,
-        storeId: session.storeId,
-      },
+      where: whereClause,
     });
 
     if (!debt) {
@@ -128,7 +127,7 @@ export async function recordDebtPayment(
       // Toko menerima uang kas (INCOME)
       await tx.cashFlow.create({
         data: {
-          storeId: session.storeId,
+          storeId: debt.storeId,
           type: CashFlowType.INCOME,
           category: "Pelunasan Piutang",
           amount,
@@ -141,7 +140,7 @@ export async function recordDebtPayment(
       // Toko membayar uang keluar ke supplier (EXPENSE)
       await tx.cashFlow.create({
         data: {
-          storeId: session.storeId,
+          storeId: debt.storeId,
           type: CashFlowType.EXPENSE,
           category: "Bayar Hutang Supplier",
           amount,

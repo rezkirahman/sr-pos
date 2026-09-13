@@ -1,6 +1,5 @@
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { Role } from "@prisma/client";
 
 export default async function HomePage() {
   const session = await getSession();
@@ -9,7 +8,11 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  if (session.role === Role.OWNER) {
+  if (session.roleCode === "SUPERADMIN") {
+    redirect("/master");
+  }
+
+  if (session.permissions?.some((p) => p.module === "dashboard" && p.canView)) {
     redirect("/dashboard");
   }
 

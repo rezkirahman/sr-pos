@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Role, DebtStatus } from "@prisma/client";
+import { DebtStatus } from "@prisma/client";
 import { calculateCartTotals, calculateChange } from "../unit/pos-transaction.test";
 import { getDueDateStatus } from "@/lib/due-date";
 import { calculateGrossProfit, calculateNetCashFlow } from "../unit/cashflow.test";
@@ -21,7 +21,7 @@ describe("Integration: Full End-to-End Retail & Cashier Lifecycle", () => {
     };
 
     // 2. Cashier views catalog (HPP is masked)
-    const cashierView = filterProductDataForRole(product, Role.CASHIER);
+    const cashierView = filterProductDataForRole(product, "CASHIER");
     expect(cashierView.purchasePrice).toBeNull();
     expect(cashierView.sellingPrice).toBe(135000);
 

@@ -4,9 +4,8 @@ import {
   verifyPassword,
   signSessionToken,
   verifySessionToken,
-  hasRoleAccess,
+  userHasPermission,
 } from "@/lib/auth";
-import { Role } from "@prisma/client";
 
 describe("Auth & RBAC Utilities", () => {
   it("should hash password and verify correctly", async () => {
@@ -28,7 +27,15 @@ describe("Auth & RBAC Utilities", () => {
       id: "usr_12345",
       name: "Budi Owner",
       username: "budi",
-      role: Role.OWNER,
+      roleId: "role_owner_id",
+      roleCode: "OWNER",
+      roleName: "Owner Toko",
+      storeId: "store_1",
+      storeName: "Toko Cat Sumber Rejeki",
+      permissions: [
+        { module: "dashboard", canView: true, canCreate: true, canUpdate: true, canDelete: true },
+        { module: "pos", canView: true, canCreate: true, canUpdate: true, canDelete: true },
+      ],
     };
 
     const token = await signSessionToken(userPayload);
@@ -39,7 +46,8 @@ describe("Auth & RBAC Utilities", () => {
     expect(decoded).not.toBeNull();
     expect(decoded?.id).toBe(userPayload.id);
     expect(decoded?.username).toBe(userPayload.username);
-    expect(decoded?.role).toBe(Role.OWNER);
+    expect(decoded?.roleCode).toBe("OWNER");
+    expect(decoded?.storeId).toBe("store_1");
   });
 
   it("should return null for invalid or tampered session token", async () => {
@@ -48,16 +56,42 @@ describe("Auth & RBAC Utilities", () => {
     expect(decoded).toBeNull();
   });
 
-  it("should enforce role-based access correctly", () => {
-    // Owner should have access to OWNER routes
-    expect(hasRoleAccess(Role.OWNER, [Role.OWNER])).toBe(true);
-    // Owner should have access to CASHIER and OWNER routes
-    expect(hasRoleAccess(Role.OWNER, [Role.OWNER, Role.CASHIER])).toBe(true);
+  it("should enforce granular RBAC access correctly", () => {
+    const cashierUser = {
+      id: "u1",
+      name: "Siti Kasir",
+      username: "siti",
+      roleId: "r1",
+      roleCode: "CASHIER",
+      roleName: "Kasir",
+      storeId: "s1",
+      permissions: [
+        { module: "pos", canView: true, canCreate: true, canUpdate: false, canDelete: false },
+        { module: "inventory", canView: true, canCreate: false, canUpdate: false, canDelete: false },
+      ],
+    };
 
-    // Cashier should have access to CASHIER routes
-    expect(hasRoleAccess(Role.CASHIER, [Role.CASHIER])).toBe(true);
+    const superAdminUser = {
+      id: "admin1",
+      name: "Master",
+      username: "admin",
+      roleId: "r_master",
+      roleCode: "SUPERADMIN",
+      roleName: "Super Administrator",
+      permissions: [],
+    };
 
-    // Cashier should NOT have access to OWNER-only routes
-    expect(hasRoleAccess(Role.CASHIER, [Role.OWNER])).toBe(false);
+    // Cashier can view and create in POS
+    expect(userHasPermission(cashierUser, "pos", "view")).toBe(true);
+    expect(userHasPermission(cashierUser, "pos", "create")).toBe(true);
+
+    // Cashier cannot delete in POS or create in inventory
+    expect(userHasPermission(cashierUser, "pos", "delete")).toBe(false);
+    expect(userHasPermission(cashierUser, "inventory", "create")).toBe(false);
+
+    // SuperAdmin has bypass access to all modules and actions
+    expect(userHasPermission(superAdminUser, "dashboard", "view")).toBe(true);
+    expect(userHasPermission(superAdminUser, "inventory", "delete")).toBe(true);
+    expect(userHasPermission(superAdminUser, "cashflow", "create")).toBe(true);
   });
 });

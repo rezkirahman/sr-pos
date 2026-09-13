@@ -1,14 +1,135 @@
-import { PrismaClient, Role, MovementType } from "@prisma/client";
+import { PrismaClient, MovementType } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("Seeding multi-tenant database for 5 stores...");
+  console.log("Seeding multi-tenant database with dynamic roles and Master account...");
 
   const defaultPassword = await bcrypt.hash("owner123", 10);
   const cashierPassword = await bcrypt.hash("kasir123", 10);
+  const masterPassword = await bcrypt.hash("admin123", 10);
 
+  // 1. Create Default Roles & Permissions
+  const rolesData = [
+    {
+      code: "SUPERADMIN",
+      name: "Super Administrator",
+      description: "Akses penuh platform, manajemen seluruh toko, pengguna, dan role",
+      isSystem: true,
+      permissions: [
+        { module: "dashboard", canView: true, canCreate: true, canUpdate: true, canDelete: true },
+        { module: "pos", canView: true, canCreate: true, canUpdate: true, canDelete: true },
+        { module: "inventory", canView: true, canCreate: true, canUpdate: true, canDelete: true },
+        { module: "purchases", canView: true, canCreate: true, canUpdate: true, canDelete: true },
+        { module: "debts", canView: true, canCreate: true, canUpdate: true, canDelete: true },
+        { module: "cashflow", canView: true, canCreate: true, canUpdate: true, canDelete: true },
+        { module: "users", canView: true, canCreate: true, canUpdate: true, canDelete: true },
+      ],
+    },
+    {
+      code: "OWNER",
+      name: "Pemilik Toko (Owner)",
+      description: "Akses penuh seluruh fitur operasional dan keuangan toko",
+      isSystem: true,
+      permissions: [
+        { module: "dashboard", canView: true, canCreate: true, canUpdate: true, canDelete: true },
+        { module: "pos", canView: true, canCreate: true, canUpdate: true, canDelete: true },
+        { module: "inventory", canView: true, canCreate: true, canUpdate: true, canDelete: true },
+        { module: "purchases", canView: true, canCreate: true, canUpdate: true, canDelete: true },
+        { module: "debts", canView: true, canCreate: true, canUpdate: true, canDelete: true },
+        { module: "cashflow", canView: true, canCreate: true, canUpdate: true, canDelete: true },
+        { module: "users", canView: true, canCreate: true, canUpdate: true, canDelete: true },
+      ],
+    },
+    {
+      code: "CASHIER",
+      name: "Kasir",
+      description: "Akses mesin kasir (POS), lihat stok produk, dan buku bon piutang",
+      isSystem: true,
+      permissions: [
+        { module: "dashboard", canView: false, canCreate: false, canUpdate: false, canDelete: false },
+        { module: "pos", canView: true, canCreate: true, canUpdate: false, canDelete: false },
+        { module: "inventory", canView: true, canCreate: false, canUpdate: false, canDelete: false },
+        { module: "purchases", canView: false, canCreate: false, canUpdate: false, canDelete: false },
+        { module: "debts", canView: true, canCreate: false, canUpdate: false, canDelete: false },
+        { module: "cashflow", canView: false, canCreate: false, canUpdate: false, canDelete: false },
+        { module: "users", canView: false, canCreate: false, canUpdate: false, canDelete: false },
+      ],
+    },
+    {
+      code: "WAREHOUSE",
+      name: "Admin Gudang",
+      description: "Akses manajemen katalog produk, penyesuaian stok, dan kulakan distributor",
+      isSystem: false,
+      permissions: [
+        { module: "dashboard", canView: false, canCreate: false, canUpdate: false, canDelete: false },
+        { module: "pos", canView: false, canCreate: false, canUpdate: false, canDelete: false },
+        { module: "inventory", canView: true, canCreate: true, canUpdate: true, canDelete: false },
+        { module: "purchases", canView: true, canCreate: true, canUpdate: true, canDelete: false },
+        { module: "debts", canView: false, canCreate: false, canUpdate: false, canDelete: false },
+        { module: "cashflow", canView: false, canCreate: false, canUpdate: false, canDelete: false },
+        { module: "users", canView: false, canCreate: false, canUpdate: false, canDelete: false },
+      ],
+    },
+  ];
+
+  const roleMap = new Map<string, any>();
+
+  for (const r of rolesData) {
+    const role = await prisma.role.upsert({
+      where: { code: r.code },
+      update: {
+        name: r.name,
+        description: r.description,
+      },
+      create: {
+        code: r.code,
+        name: r.name,
+        description: r.description,
+        isSystem: r.isSystem,
+      },
+    });
+
+    roleMap.set(r.code, role);
+
+    // Sync permissions
+    await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
+    await prisma.rolePermission.createMany({
+      data: r.permissions.map((p) => ({
+        roleId: role.id,
+        module: p.module,
+        canView: p.canView,
+        canCreate: p.canCreate,
+        canUpdate: p.canUpdate,
+        canDelete: p.canDelete,
+      })),
+    });
+  }
+
+  console.log("Roles and permissions seeded.");
+
+  // 2. Create Master Super Admin User (Bebas Toko)
+  const superAdminRole = roleMap.get("SUPERADMIN")!;
+  const masterUser = await prisma.user.upsert({
+    where: { username: "admin" },
+    update: {
+      roleId: superAdminRole.id,
+      storeId: null,
+      passwordHash: masterPassword,
+    },
+    create: {
+      name: "Super Administrator",
+      username: "admin",
+      passwordHash: masterPassword,
+      roleId: superAdminRole.id,
+      storeId: null,
+    },
+  });
+
+  console.log(`Master Super Admin created: @${masterUser.username} (password: admin123)`);
+
+  // 3. Create 5 Sample Stores
   const storesData = [
     {
       code: "TK01",
@@ -130,7 +251,7 @@ async function main() {
       unit: "Jerigen",
       purchasePrice: 115000,
       sellingPrice: 145000,
-      stock: 3, // Menipis
+      stock: 3,
       minStockAlert: 5,
     },
     {
@@ -170,13 +291,15 @@ async function main() {
       unit: "Galon",
       purchasePrice: 48000,
       sellingPrice: 62000,
-      stock: 2, // Stok menipis
+      stock: 2,
       minStockAlert: 5,
     },
   ];
 
+  const ownerRole = roleMap.get("OWNER")!;
+  const cashierRole = roleMap.get("CASHIER")!;
+
   for (const s of storesData) {
-    // 1. Create / Upsert Store
     const store = await prisma.store.upsert({
       where: { code: s.code },
       update: {
@@ -192,18 +315,18 @@ async function main() {
       },
     });
 
-    // 2. Create / Upsert Users for this Store
     const ownerUser = await prisma.user.upsert({
       where: { username: s.owner.username },
       update: {
         storeId: store.id,
+        roleId: ownerRole.id,
       },
       create: {
         storeId: store.id,
+        roleId: ownerRole.id,
         name: s.owner.name,
         username: s.owner.username,
         passwordHash: defaultPassword,
-        role: Role.OWNER,
       },
     });
 
@@ -211,19 +334,17 @@ async function main() {
       where: { username: s.cashier.username },
       update: {
         storeId: store.id,
+        roleId: cashierRole.id,
       },
       create: {
         storeId: store.id,
+        roleId: cashierRole.id,
         name: s.cashier.name,
         username: s.cashier.username,
         passwordHash: cashierPassword,
-        role: Role.CASHIER,
       },
     });
 
-    console.log(`Store [${store.code}] ${store.name} seeded with users: ${s.owner.username}, ${s.cashier.username}`);
-
-    // 3. Create Sample Products for this Store
     for (const prod of sampleCatalog) {
       const existingProduct = await prisma.product.findUnique({
         where: {
@@ -242,7 +363,6 @@ async function main() {
           },
         });
 
-        // Record initial stock movement
         await prisma.stockMovement.create({
           data: {
             storeId: store.id,
@@ -259,7 +379,7 @@ async function main() {
     }
   }
 
-  console.log("All 5 stores and their catalogs seeded successfully!");
+  console.log("All 5 stores, catalogs, and users seeded successfully!");
 }
 
 main()

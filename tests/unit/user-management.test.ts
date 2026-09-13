@@ -1,11 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { Role } from "@prisma/client";
 
 export function validateNewUserData(data: {
   name: string;
   username: string;
   password: string;
-  role: Role;
+  roleId: string;
 }): { isValid: boolean; error?: string } {
   if (data.name.trim().length < 2) {
     return { isValid: false, error: "Nama minimal 2 karakter" };
@@ -16,6 +15,9 @@ export function validateNewUserData(data: {
   if (data.password.length < 6) {
     return { isValid: false, error: "Password minimal 6 karakter" };
   }
+  if (!data.roleId) {
+    return { isValid: false, error: "Role wajib dipilih" };
+  }
   return { isValid: true };
 }
 
@@ -25,7 +27,7 @@ describe("User Management Validation Logic", () => {
       name: "Budi Santoso",
       username: "budi_kasir2",
       password: "password123",
-      role: Role.CASHIER,
+      roleId: "role_cashier_id",
     });
     expect(res.isValid).toBe(true);
     expect(res.error).toBeUndefined();
@@ -36,7 +38,7 @@ describe("User Management Validation Logic", () => {
       name: "Budi",
       username: "bu",
       password: "password123",
-      role: Role.CASHIER,
+      roleId: "role_cashier_id",
     });
     expect(shortUser.isValid).toBe(false);
 
@@ -44,7 +46,7 @@ describe("User Management Validation Logic", () => {
       name: "Budi",
       username: "budikasir",
       password: "123",
-      role: Role.CASHIER,
+      roleId: "role_cashier_id",
     });
     expect(shortPass.isValid).toBe(false);
   });

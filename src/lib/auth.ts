@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
-import { Role } from "@prisma/client";
+import { PermissionAction, PermissionRecord, hasPermission } from "./permissions";
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "sumber-rejeki-pos-secret-jwt-token-key-2026-super-secure"
@@ -13,9 +13,12 @@ export interface SessionUser {
   id: string;
   name: string;
   username: string;
-  role: Role;
-  storeId: string;
-  storeName: string;
+  roleId: string;
+  roleCode: string;
+  roleName: string;
+  storeId?: string | null;
+  storeName?: string | null;
+  permissions: PermissionRecord[];
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -46,17 +49,25 @@ export async function verifySessionToken(
       id: payload.id as string,
       name: payload.name as string,
       username: payload.username as string,
-      role: payload.role as Role,
-      storeId: payload.storeId as string,
-      storeName: payload.storeName as string,
+      roleId: payload.roleId as string,
+      roleCode: payload.roleCode as string,
+      roleName: payload.roleName as string,
+      storeId: (payload.storeId as string) || null,
+      storeName: (payload.storeName as string) || null,
+      permissions: (payload.permissions as PermissionRecord[]) || [],
     };
   } catch {
     return null;
   }
 }
 
-export function hasRoleAccess(userRole: Role, allowedRoles: Role[]): boolean {
-  return allowedRoles.includes(userRole);
+export function userHasPermission(
+  user: SessionUser,
+  module: string,
+  action: PermissionAction = "view"
+): boolean {
+  if (user.roleCode === "SUPERADMIN") return true;
+  return hasPermission(user.permissions, module, action);
 }
 
 export async function createSession(user: SessionUser) {
@@ -91,13 +102,31 @@ export async function clearSession() {
   }
 }
 
-export async function requireRole(allowedRoles: Role[]): Promise<SessionUser> {
+export async function requirePermission(
+  module: string,
+  action: PermissionAction = "view"
+): Promise<SessionUser> {
   const session = await getSession();
   if (!session) {
     throw new Error("UNAUTHORIZED");
   }
-  if (!hasRoleAccess(session.role, allowedRoles)) {
-    throw new Error("FORBIDDEN");
+
+  if (!userHasPermission(session, module, action)) {
+    throw new Error("FORBIDDEN: Anda tidak memiliki izin untuk tindakan ini.");
   }
+
+  return session;
+}
+
+export async function requireSuperAdmin(): Promise<SessionUser> {
+  const session = await getSession();
+  if (!session) {
+    throw new Error("UNAUTHORIZED");
+  }
+
+  if (session.roleCode !== "SUPERADMIN") {
+    throw new Error("FORBIDDEN: Halaman ini hanya dapat diakses oleh Super Admin");
+  }
+
   return session;
 }

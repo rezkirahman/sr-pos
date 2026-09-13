@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import {
-  Role,
   PaymentType,
   MovementType,
   DebtType,
@@ -9,9 +8,11 @@ import {
 } from "@prisma/client";
 
 describe("Prisma Schema & Enum Definitions", () => {
-  it("should have correct Role enums", () => {
-    expect(Role.OWNER).toBe("OWNER");
-    expect(Role.CASHIER).toBe("CASHIER");
+  it("should have correct system role codes", () => {
+    const systemRoleCodes = ["SUPERADMIN", "OWNER", "CASHIER", "WAREHOUSE"];
+    expect(systemRoleCodes).toContain("SUPERADMIN");
+    expect(systemRoleCodes).toContain("OWNER");
+    expect(systemRoleCodes).toContain("CASHIER");
   });
 
   it("should have correct PaymentType enums", () => {

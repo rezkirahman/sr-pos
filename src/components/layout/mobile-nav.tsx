@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Role } from "@prisma/client";
 import {
   Menu,
   LayoutDashboard,
@@ -14,6 +13,7 @@ import {
   TrendingUp,
   Users,
   Paintbrush,
+  ShieldAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,62 +26,66 @@ import {
 import { cn } from "@/lib/utils";
 
 interface MobileNavProps {
-  role: Role;
+  permissions?: Array<{ module: string; canView: boolean }>;
+  roleCode?: string;
+  roleName?: string;
 }
 
-export function MobileNav({ role }: MobileNavProps) {
+const ALL_NAV_ITEMS = [
+  {
+    module: "dashboard",
+    title: "Ringkasan Toko",
+    href: "/dashboard",
+    icon: LayoutDashboard,
+  },
+  {
+    module: "pos",
+    title: "Kasir (POS)",
+    href: "/pos",
+    icon: ShoppingCart,
+  },
+  {
+    module: "inventory",
+    title: "Master Produk & Stok",
+    href: "/inventory",
+    icon: Boxes,
+  },
+  {
+    module: "purchases",
+    title: "Kulakan Distributor",
+    href: "/purchases",
+    icon: Truck,
+  },
+  {
+    module: "debts",
+    title: "Hutang & Piutang",
+    href: "/debts",
+    icon: Receipt,
+  },
+  {
+    module: "cashflow",
+    title: "Buku Kas & Laba",
+    href: "/cashflow",
+    icon: TrendingUp,
+  },
+  {
+    module: "users",
+    title: "Kelola Staf Toko",
+    href: "/users",
+    icon: Users,
+  },
+];
+
+export function MobileNav({ permissions = [], roleCode = "", roleName = "" }: MobileNavProps) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const isSuperAdmin = roleCode === "SUPERADMIN";
 
-  const navItems = [
-    ...(role === Role.OWNER
-      ? [
-          {
-            title: "Ringkasan Toko",
-            href: "/dashboard",
-            icon: LayoutDashboard,
-          },
-        ]
-      : []),
-    {
-      title: "Kasir (POS)",
-      href: "/pos",
-      icon: ShoppingCart,
-    },
-    {
-      title: role === Role.OWNER ? "Master Produk & Stok" : "Katalog & Stok Barang",
-      href: "/inventory",
-      icon: Boxes,
-    },
-    ...(role === Role.OWNER
-      ? [
-          {
-            title: "Kulakan Distributor",
-            href: "/purchases",
-            icon: Truck,
-          },
-        ]
-      : []),
-    {
-      title: role === Role.OWNER ? "Hutang & Piutang" : "Buku Bon (Piutang)",
-      href: "/debts",
-      icon: Receipt,
-    },
-    ...(role === Role.OWNER
-      ? [
-          {
-            title: "Buku Kas & Laba",
-            href: "/cashflow",
-            icon: TrendingUp,
-          },
-          {
-            title: "Kelola Pengguna",
-            href: "/users",
-            icon: Users,
-          },
-        ]
-      : []),
-  ];
+  const navItems = isSuperAdmin
+    ? ALL_NAV_ITEMS
+    : ALL_NAV_ITEMS.filter((item) =>
+        permissions.some((p) => p.module === item.module && p.canView)
+      );
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -98,13 +102,26 @@ export function MobileNav({ role }: MobileNavProps) {
               <Paintbrush className="h-5 w-5" />
             </div>
             <div>
-              <SheetTitle className="font-heading text-base font-bold">Sumber Rejeki</SheetTitle>
-              <div className="text-xs text-muted-foreground">Toko Cat & Bangunan</div>
+              <SheetTitle className="font-heading text-base font-bold">POS Cat Bangunan</SheetTitle>
+              <div className="text-xs text-muted-foreground">Multi-Tenant System</div>
             </div>
           </div>
         </SheetHeader>
 
         <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto">
+          {isSuperAdmin && (
+            <div className="mb-2 pb-2 border-b">
+              <Link
+                href="/master"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-3 rounded-xl px-3.5 py-2 text-xs font-bold text-primary bg-primary/10"
+              >
+                <ShieldAlert className="h-4 w-4" />
+                <span>Dashboard Master</span>
+              </Link>
+            </div>
+          )}
+
           {navItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
             const Icon = item.icon;
@@ -128,7 +145,7 @@ export function MobileNav({ role }: MobileNavProps) {
         </nav>
 
         <div className="p-4 border-t text-xs text-muted-foreground">
-          <div>Role Aktif: <strong className="text-foreground">{role}</strong></div>
+          <div>Role Aktif: <strong className="text-foreground">{roleName || roleCode || "Pengguna"}</strong></div>
         </div>
       </SheetContent>
     </Sheet>

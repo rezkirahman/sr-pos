@@ -1,21 +1,16 @@
 "use client";
 
-import { Role } from "@prisma/client";
 import { MobileNav } from "./mobile-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { logoutAction } from "@/actions/auth";
-import { LogOut, User as UserIcon, Store as StoreIcon } from "lucide-react";
+import { LogOut, User as UserIcon, Store as StoreIcon, ShieldAlert } from "lucide-react";
+import Link from "next/link";
+import { SessionUser } from "@/lib/auth";
 
 interface HeaderProps {
-  user: {
-    name: string;
-    username: string;
-    role: Role;
-    storeId?: string;
-    storeName?: string;
-  };
+  user: SessionUser;
 }
 
 export function Header({ user }: HeaderProps) {
@@ -26,18 +21,32 @@ export function Header({ user }: HeaderProps) {
     year: "numeric",
   }).format(new Date());
 
+  const isSuperAdmin = user.roleCode === "SUPERADMIN";
+
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-card/80 backdrop-blur px-4 md:px-6">
       <div className="flex items-center gap-3">
-        <MobileNav role={user.role} />
-        
-        {/* Active Store Badge */}
-        {user.storeName && (
+        <MobileNav
+          permissions={user.permissions}
+          roleCode={user.roleCode}
+          roleName={user.roleName}
+        />
+
+        {/* Active Store Badge or Super Admin indicator */}
+        {user.storeName ? (
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border bg-primary/10 text-primary font-semibold text-xs shadow-xs">
             <StoreIcon className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate max-w-[130px] sm:max-w-[220px]">{user.storeName}</span>
           </div>
-        )}
+        ) : isSuperAdmin ? (
+          <Link
+            href="/master"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold text-xs"
+          >
+            <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+            <span>Mode Super Admin</span>
+          </Link>
+        ) : null}
 
         <div className="hidden lg:block">
           <span className="text-xs text-muted-foreground capitalize">{currentDate}</span>
@@ -50,10 +59,10 @@ export function Header({ user }: HeaderProps) {
           <UserIcon className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="font-medium hidden sm:inline">{user.name}</span>
           <Badge
-            variant={user.role === Role.OWNER ? "default" : "success"}
+            variant={isSuperAdmin ? "destructive" : user.roleCode === "OWNER" ? "default" : "secondary"}
             className="text-[10px] uppercase px-1.5 py-0 font-bold"
           >
-            {user.role}
+            {user.roleName || user.roleCode}
           </Badge>
         </div>
 

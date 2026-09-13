@@ -1,13 +1,17 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { requireRole } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { purchaseSchema, PurchaseInput } from "@/lib/validations/purchase";
-import { Role, MovementType, DebtType, DebtStatus, CashFlowType, PaymentType } from "@prisma/client";
+import { MovementType, DebtType, DebtStatus, CashFlowType, PaymentType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 export async function recordPurchase(input: PurchaseInput) {
-  const session = await requireRole([Role.OWNER]);
+  const session = await requirePermission("purchases", "create");
+  if (!session.storeId) {
+    throw new Error("Akun Super Admin tidak terikat toko untuk transaksi kulakan toko.");
+  }
+
   const parsed = purchaseSchema.parse(input);
 
   const result = await prisma.$transaction(async (tx) => {
@@ -20,7 +24,7 @@ export async function recordPurchase(input: PurchaseInput) {
     // 2. Process each item: update stock & HPP, create StockMovement IN
     for (const item of parsed.items) {
       const product = await tx.product.findFirst({
-        where: { id: item.productId, storeId: session.storeId },
+        where: { id: item.productId, storeId: session.storeId! },
       });
 
       if (!product) {
@@ -40,7 +44,7 @@ export async function recordPurchase(input: PurchaseInput) {
 
       await tx.stockMovement.create({
         data: {
-          storeId: session.storeId,
+          storeId: session.storeId!,
           productId: product.id,
           type: MovementType.IN,
           quantity: item.quantity,
@@ -57,7 +61,7 @@ export async function recordPurchase(input: PurchaseInput) {
     if (parsed.paymentType === PaymentType.CASH || parsed.paymentType === PaymentType.TRANSFER) {
       await tx.cashFlow.create({
         data: {
-          storeId: session.storeId,
+          storeId: session.storeId!,
           type: CashFlowType.EXPENSE,
           category: "Kulakan",
           amount: totalAmount,
@@ -73,7 +77,7 @@ export async function recordPurchase(input: PurchaseInput) {
 
       await tx.debtReceivable.create({
         data: {
-          storeId: session.storeId,
+          storeId: session.storeId!,
           type: DebtType.DEBT, // Hutang Toko ke Supplier
           contactName: parsed.supplierName,
           contactPhone: parsed.supplierPhone || null,
@@ -100,14 +104,16 @@ export async function recordPurchase(input: PurchaseInput) {
 }
 
 export async function getRecentPurchases() {
-  const session = await requireRole([Role.OWNER]);
+  const session = await requirePermission("purchases", "view");
+
+  const whereClause: any = { type: MovementType.IN };
+  if (session.storeId) {
+    whereClause.storeId = session.storeId;
+  }
 
   // Retrieve stock in movements linked to purchases scoped to store
   return await prisma.stockMovement.findMany({
-    where: {
-      storeId: session.storeId,
-      type: MovementType.IN,
-    },
+    where: whereClause,
     include: {
       product: true,
       createdBy: {

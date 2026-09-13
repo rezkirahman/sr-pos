@@ -1,6 +1,5 @@
-import { getSession } from "@/lib/auth";
+import { getSession, userHasPermission } from "@/lib/auth";
 import { getProducts, getCategories } from "@/actions/product";
-import { Role } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { InventoryClient } from "./inventory-client";
 
@@ -10,7 +9,7 @@ export default async function InventoryPage() {
     redirect("/login");
   }
 
-  const isOwner = session.role === Role.OWNER;
+  const canManage = userHasPermission(session, "inventory", "create") || userHasPermission(session, "inventory", "update");
   const initialProducts = await getProducts();
   const categories = await getCategories();
 
@@ -18,7 +17,7 @@ export default async function InventoryPage() {
     <InventoryClient
       initialProducts={initialProducts}
       categories={categories}
-      isOwner={isOwner}
+      isOwner={canManage}
     />
   );
 }

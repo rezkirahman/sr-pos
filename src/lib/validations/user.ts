@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { Role } from "@prisma/client";
 
 export const createUserSchema = z.object({
   name: z.string().min(2, "Nama minimal 2 karakter"),
@@ -9,7 +8,7 @@ export const createUserSchema = z.object({
     .max(20, "Username maksimal 20 karakter")
     .regex(/^[a-zA-Z0-9_]+$/, "Username hanya boleh huruf, angka, dan underscore"),
   password: z.string().min(6, "Password minimal 6 karakter"),
-  role: z.nativeEnum(Role),
+  roleId: z.string().min(1, "Role wajib dipilih"),
 });
 
 export const resetPasswordSchema = z.object({

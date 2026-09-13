@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { Role } from "@prisma/client";
 
-// Helper function that masks HPP based on user role
+// Helper function that masks HPP based on user role code
 export function filterProductDataForRole(
   product: {
     id: string;
@@ -12,9 +11,9 @@ export function filterProductDataForRole(
     stock: number;
     minStockAlert: number;
   },
-  role: Role
+  roleCode: string
 ) {
-  if (role === Role.CASHIER) {
+  if (roleCode === "CASHIER") {
     const { purchasePrice, ...rest } = product;
     return { ...rest, purchasePrice: null };
   }
@@ -52,14 +51,14 @@ describe("Product & Inventory Business Logic", () => {
   };
 
   it("should mask HPP (purchasePrice) when role is CASHIER", () => {
-    const cashierView = filterProductDataForRole(mockProduct, Role.CASHIER);
+    const cashierView = filterProductDataForRole(mockProduct, "CASHIER");
     expect(cashierView.purchasePrice).toBeNull();
     expect(cashierView.sellingPrice).toBe(125000);
     expect(cashierView.stock).toBe(4);
   });
 
   it("should expose HPP (purchasePrice) when role is OWNER", () => {
-    const ownerView = filterProductDataForRole(mockProduct, Role.OWNER);
+    const ownerView = filterProductDataForRole(mockProduct, "OWNER");
     expect(ownerView.purchasePrice).toBe(100000);
     expect(ownerView.sellingPrice).toBe(125000);
   });

@@ -2,7 +2,6 @@ import { getSession } from "@/lib/auth";
 import { getProducts } from "@/actions/product";
 import { getDebtsSummary } from "@/actions/debt";
 import { getCashFlowSummary } from "@/actions/cashflow";
-import { Role } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { FinancialSummary } from "@/components/cashflow/financial-summary";
 import { DebtSummaryCards } from "@/components/debts/debt-summary-cards";
@@ -19,7 +18,7 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  if (session.role !== Role.OWNER) {
+  if (session.roleCode !== "SUPERADMIN" && !session.permissions?.some((p) => p.module === "dashboard" && p.canView)) {
     redirect("/pos");
   }
 

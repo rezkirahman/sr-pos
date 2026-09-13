@@ -1,6 +1,5 @@
-import { getSession } from "@/lib/auth";
-import { getUsers } from "@/actions/user";
-import { Role } from "@prisma/client";
+import { getSession, userHasPermission } from "@/lib/auth";
+import { getUsers, getStoreRoles } from "@/actions/user";
 import { redirect } from "next/navigation";
 import { UsersClient } from "./users-client";
 
@@ -10,11 +9,14 @@ export default async function UsersPage() {
     redirect("/login");
   }
 
-  if (session.role !== Role.OWNER) {
+  if (!userHasPermission(session, "users", "view")) {
     redirect("/pos");
   }
 
-  const users = await getUsers();
+  const [users, roles] = await Promise.all([
+    getUsers(),
+    getStoreRoles(),
+  ]);
 
-  return <UsersClient initialUsers={users} currentUserId={session.id} />;
+  return <UsersClient initialUsers={users} currentUserId={session.id} roles={roles} />;
 }

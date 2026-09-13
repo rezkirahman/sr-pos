@@ -1,20 +1,23 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { requireRole } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { expenseSchema, ExpenseInput } from "@/lib/validations/cashflow";
-import { Role, CashFlowType } from "@prisma/client";
+import { CashFlowType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 export async function createExpense(input: ExpenseInput) {
-  const session = await requireRole([Role.OWNER]);
-  const parsed = expenseSchema.parse(input);
+  const session = await requirePermission("cashflow", "create");
+  if (!session.storeId) {
+    throw new Error("Akun Super Admin tidak terikat toko untuk input pengeluaran toko.");
+  }
 
+  const parsed = expenseSchema.parse(input);
   const expenseDate = new Date(parsed.expenseDate);
 
   const created = await prisma.cashFlow.create({
     data: {
-      storeId: session.storeId,
+      storeId: session.storeId!,
       type: CashFlowType.EXPENSE,
       category: parsed.category,
       amount: parsed.amount,
@@ -31,11 +34,12 @@ export async function createExpense(input: ExpenseInput) {
 }
 
 export async function getCashFlowLedger(startDate?: string, endDate?: string) {
-  const session = await requireRole([Role.OWNER]);
+  const session = await requirePermission("cashflow", "view");
 
-  const whereClause: any = {
-    storeId: session.storeId,
-  };
+  const whereClause: any = {};
+  if (session.storeId) {
+    whereClause.storeId = session.storeId;
+  }
 
   if (startDate || endDate) {
     whereClause.createdAt = {};
@@ -62,7 +66,7 @@ export async function getCashFlowLedger(startDate?: string, endDate?: string) {
 }
 
 export async function getCashFlowSummary(startDate?: string, endDate?: string) {
-  const session = await requireRole([Role.OWNER]);
+  const session = await requirePermission("cashflow", "view");
 
   const dateFilter: any = {};
   if (startDate) {
@@ -77,11 +81,16 @@ export async function getCashFlowSummary(startDate?: string, endDate?: string) {
   const hasDateFilter = startDate || endDate;
 
   // 1. Fetch cash flow entries scoped to store
+  const cashFlowWhere: any = {};
+  if (session.storeId) {
+    cashFlowWhere.storeId = session.storeId;
+  }
+  if (hasDateFilter) {
+    cashFlowWhere.createdAt = dateFilter;
+  }
+
   const cashFlows = await prisma.cashFlow.findMany({
-    where: {
-      storeId: session.storeId,
-      ...(hasDateFilter ? { createdAt: dateFilter } : {}),
-    },
+    where: cashFlowWhere,
   });
 
   const totalIncome = cashFlows
@@ -95,13 +104,20 @@ export async function getCashFlowSummary(startDate?: string, endDate?: string) {
   const netCashFlow = totalIncome - totalExpense;
 
   // 2. Calculate Gross Profit from TransactionItems scoped to store (Sell Price - HPP Snapshot)
+  const itemWhere: any = {};
+  if (session.storeId) {
+    itemWhere.transaction = {
+      storeId: session.storeId,
+      ...(hasDateFilter ? { createdAt: dateFilter } : {}),
+    };
+  } else if (hasDateFilter) {
+    itemWhere.transaction = {
+      createdAt: dateFilter,
+    };
+  }
+
   const transactionItems = await prisma.transactionItem.findMany({
-    where: {
-      transaction: {
-        storeId: session.storeId,
-        ...(hasDateFilter ? { createdAt: dateFilter } : {}),
-      },
-    },
+    where: itemWhere,
     select: {
       quantity: true,
       unitPrice: true,

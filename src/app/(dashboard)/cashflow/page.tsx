@@ -1,6 +1,5 @@
-import { getSession } from "@/lib/auth";
+import { getSession, userHasPermission } from "@/lib/auth";
 import { getCashFlowSummary, getCashFlowLedger } from "@/actions/cashflow";
-import { Role } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { CashFlowClient } from "./cashflow-client";
 
@@ -10,7 +9,7 @@ export default async function CashFlowPage() {
     redirect("/login");
   }
 
-  if (session.role !== Role.OWNER) {
+  if (!userHasPermission(session, "cashflow", "view")) {
     redirect("/pos");
   }
 

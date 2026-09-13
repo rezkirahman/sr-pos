@@ -1,9 +1,9 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { getSession, requireRole } from "@/lib/auth";
+import { getSession, requirePermission, userHasPermission } from "@/lib/auth";
 import { productSchema, stockAdjustmentSchema, CreateProductInput, StockAdjustmentInput } from "@/lib/validations/product";
-import { Role, MovementType } from "@prisma/client";
+import { MovementType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 export async function getProducts(options?: {
@@ -11,17 +11,17 @@ export async function getProducts(options?: {
   category?: string;
   filter?: "all" | "low" | "empty";
 }) {
-  const session = await getSession();
-  if (!session) {
-    throw new Error("UNAUTHORIZED");
-  }
+  const session = await requirePermission("inventory", "view");
 
   const { search, category, filter = "all" } = options || {};
 
   const whereClause: any = {
-    storeId: session.storeId,
     isActive: true,
   };
+
+  if (session.storeId) {
+    whereClause.storeId = session.storeId;
+  }
 
   if (category && category !== "ALL") {
     whereClause.category = category;
@@ -51,8 +51,9 @@ export async function getProducts(options?: {
     filtered = products.filter((p) => p.stock <= 0);
   }
 
-  // Mask purchasePrice for CASHIER
-  if (session.role === Role.CASHIER) {
+  // Mask purchasePrice if user cannot update inventory (e.g. standard Cashier)
+  const canSeePurchasePrice = userHasPermission(session, "inventory", "update") || session.roleCode === "SUPERADMIN";
+  if (!canSeePurchasePrice) {
     return filtered.map((p) => ({
       ...p,
       purchasePrice: null,
@@ -63,13 +64,17 @@ export async function getProducts(options?: {
 }
 
 export async function createProduct(input: CreateProductInput) {
-  const session = await requireRole([Role.OWNER]);
+  const session = await requirePermission("inventory", "create");
+  if (!session.storeId) {
+    throw new Error("Akun Super Admin tidak terikat toko. Silakan gunakan akun toko.");
+  }
+
   const parsed = productSchema.parse(input);
 
   const product = await prisma.$transaction(async (tx) => {
     const created = await tx.product.create({
       data: {
-        storeId: session.storeId,
+        storeId: session.storeId!,
         sku: parsed.sku || null,
         name: parsed.name,
         category: parsed.category,
@@ -85,7 +90,7 @@ export async function createProduct(input: CreateProductInput) {
     if (parsed.stock > 0) {
       await tx.stockMovement.create({
         data: {
-          storeId: session.storeId,
+          storeId: session.storeId!,
           productId: created.id,
           type: MovementType.IN,
           quantity: parsed.stock,
@@ -106,10 +111,15 @@ export async function createProduct(input: CreateProductInput) {
 }
 
 export async function updateProduct(id: string, input: Partial<CreateProductInput>) {
-  const session = await requireRole([Role.OWNER]);
+  const session = await requirePermission("inventory", "update");
+
+  const whereClause: any = { id };
+  if (session.storeId) {
+    whereClause.storeId = session.storeId;
+  }
 
   const existing = await prisma.product.findFirst({
-    where: { id, storeId: session.storeId },
+    where: whereClause,
   });
 
   if (!existing) {
@@ -136,12 +146,18 @@ export async function updateProduct(id: string, input: Partial<CreateProductInpu
 }
 
 export async function adjustStock(input: StockAdjustmentInput) {
-  const session = await requireRole([Role.OWNER]);
+  const session = await requirePermission("inventory", "update");
+
   const parsed = stockAdjustmentSchema.parse(input);
 
   const result = await prisma.$transaction(async (tx) => {
+    const whereClause: any = { id: parsed.productId };
+    if (session.storeId) {
+      whereClause.storeId = session.storeId;
+    }
+
     const product = await tx.product.findFirst({
-      where: { id: parsed.productId, storeId: session.storeId },
+      where: whereClause,
     });
 
     if (!product) {
@@ -159,7 +175,7 @@ export async function adjustStock(input: StockAdjustmentInput) {
 
     await tx.stockMovement.create({
       data: {
-        storeId: session.storeId,
+        storeId: product.storeId,
         productId: product.id,
         type: MovementType.ADJUSTMENT,
         quantity: Math.abs(diff),
@@ -179,16 +195,18 @@ export async function adjustStock(input: StockAdjustmentInput) {
 }
 
 export async function getStockMovements(productId: string) {
-  const session = await getSession();
-  if (!session) {
-    throw new Error("UNAUTHORIZED");
+  const session = await requirePermission("inventory", "view");
+
+  const whereClause: any = { productId };
+  if (session.storeId) {
+    whereClause.storeId = session.storeId;
   }
 
   return await prisma.stockMovement.findMany({
-    where: { productId, storeId: session.storeId },
+    where: whereClause,
     include: {
       createdBy: {
-        select: { name: true, role: true },
+        select: { name: true },
       },
     },
     orderBy: { createdAt: "desc" },
@@ -200,8 +218,13 @@ export async function getCategories(): Promise<string[]> {
   const session = await getSession();
   if (!session) return [];
 
+  const whereClause: any = {};
+  if (session.storeId) {
+    whereClause.storeId = session.storeId;
+  }
+
   const products = await prisma.product.findMany({
-    where: { storeId: session.storeId },
+    where: whereClause,
     select: { category: true },
     distinct: ["category"],
     orderBy: { category: "asc" },

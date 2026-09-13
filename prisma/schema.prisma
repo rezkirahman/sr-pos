@@ -7,11 +7,6 @@ generator client {
   provider = "prisma-client-js"
 }
 
-enum Role {
-  OWNER
-  CASHIER
-}
-
 enum PaymentType {
   CASH
   TRANSFER
@@ -57,14 +52,41 @@ model Store {
   debtReceivables DebtReceivable[]
 }
 
+model Role {
+  id          String           @id @default(cuid())
+  name        String
+  code        String           @unique // e.g. "SUPERADMIN", "OWNER", "CASHIER", "WAREHOUSE"
+  description String?
+  isSystem    Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  permissions RolePermission[]
+  users       User[]
+}
+
+model RolePermission {
+  id        String   @id @default(cuid())
+  roleId    String
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  module    String   // "dashboard", "pos", "inventory", "purchases", "debts", "cashflow", "users"
+  canView   Boolean  @default(false)
+  canCreate Boolean  @default(false)
+  canUpdate Boolean  @default(false)
+  canDelete Boolean  @default(false)
+
+  @@unique([roleId, module])
+  @@index([roleId])
+}
+
 model User {
   id           String          @id @default(cuid())
-  storeId      String
-  store        Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  storeId      String?
+  store        Store?          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  roleId       String
+  role         Role            @relation(fields: [roleId], references: [id])
   name         String
   username     String          @unique
   passwordHash String
-  role         Role            @default(CASHIER)
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
   transactions Transaction[]
@@ -72,6 +94,7 @@ model User {
   cashFlows    CashFlow[]
 
   @@index([storeId])
+  @@index([roleId])
 }
 
 model Product {

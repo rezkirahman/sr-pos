@@ -1,15 +1,15 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { checkoutSchema, CheckoutInput } from "@/lib/validations/pos";
 import { PaymentType, MovementType, DebtType, DebtStatus, CashFlowType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 export async function checkoutTransaction(input: CheckoutInput) {
-  const session = await getSession();
-  if (!session) {
-    throw new Error("UNAUTHORIZED");
+  const session = await requirePermission("pos", "create");
+  if (!session.storeId) {
+    throw new Error("Akun Super Admin tidak terikat toko untuk transaksi kasir.");
   }
 
   const parsed = checkoutSchema.parse(input);
@@ -19,7 +19,7 @@ export async function checkoutTransaction(input: CheckoutInput) {
     // 1. Fetch & Validate stock availability (scoped to store)
     const productIds = parsed.items.map((i) => i.productId);
     const dbProducts = await tx.product.findMany({
-      where: { id: { in: productIds }, storeId: session.storeId },
+      where: { id: { in: productIds }, storeId: session.storeId! },
     });
 
     const productMap = new Map(dbProducts.map((p) => [p.id, p]));
@@ -45,7 +45,7 @@ export async function checkoutTransaction(input: CheckoutInput) {
 
     const todayCount = await tx.transaction.count({
       where: {
-        storeId: session.storeId,
+        storeId: session.storeId!,
         invoiceNumber: {
           startsWith: datePrefix,
         },
@@ -69,7 +69,7 @@ export async function checkoutTransaction(input: CheckoutInput) {
     // 4. Create Transaction Record
     const transaction = await tx.transaction.create({
       data: {
-        storeId: session.storeId,
+        storeId: session.storeId!,
         invoiceNumber,
         customerName: parsed.customerName || null,
         paymentType: parsed.paymentType,
@@ -109,7 +109,7 @@ export async function checkoutTransaction(input: CheckoutInput) {
 
       await tx.stockMovement.create({
         data: {
-          storeId: session.storeId,
+          storeId: session.storeId!,
           productId: item.productId,
           type: MovementType.OUT,
           quantity: item.quantity,
@@ -127,7 +127,7 @@ export async function checkoutTransaction(input: CheckoutInput) {
       // Record CashFlow INCOME
       await tx.cashFlow.create({
         data: {
-          storeId: session.storeId,
+          storeId: session.storeId!,
           type: CashFlowType.INCOME,
           category: "Penjualan",
           amount: totalAmount,
@@ -144,7 +144,7 @@ export async function checkoutTransaction(input: CheckoutInput) {
 
       await tx.debtReceivable.create({
         data: {
-          storeId: session.storeId,
+          storeId: session.storeId!,
           type: DebtType.RECEIVABLE,
           contactName: parsed.customerName!,
           contactPhone: parsed.customerPhone || null,

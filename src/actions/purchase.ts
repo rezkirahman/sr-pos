@@ -19,12 +19,12 @@ export async function recordPurchase(input: PurchaseInput) {
 
     // 2. Process each item: update stock & HPP, create StockMovement IN
     for (const item of parsed.items) {
-      const product = await tx.product.findUnique({
-        where: { id: item.productId },
+      const product = await tx.product.findFirst({
+        where: { id: item.productId, storeId: session.storeId },
       });
 
       if (!product) {
-        throw new Error(`Produk dengan ID ${item.productId} tidak ditemukan.`);
+        throw new Error(`Produk dengan ID ${item.productId} tidak ditemukan di toko ini.`);
       }
 
       const stockBefore = product.stock;
@@ -40,6 +40,7 @@ export async function recordPurchase(input: PurchaseInput) {
 
       await tx.stockMovement.create({
         data: {
+          storeId: session.storeId,
           productId: product.id,
           type: MovementType.IN,
           quantity: item.quantity,
@@ -56,6 +57,7 @@ export async function recordPurchase(input: PurchaseInput) {
     if (parsed.paymentType === PaymentType.CASH || parsed.paymentType === PaymentType.TRANSFER) {
       await tx.cashFlow.create({
         data: {
+          storeId: session.storeId,
           type: CashFlowType.EXPENSE,
           category: "Kulakan",
           amount: totalAmount,
@@ -71,6 +73,7 @@ export async function recordPurchase(input: PurchaseInput) {
 
       await tx.debtReceivable.create({
         data: {
+          storeId: session.storeId,
           type: DebtType.DEBT, // Hutang Toko ke Supplier
           contactName: parsed.supplierName,
           contactPhone: parsed.supplierPhone || null,
@@ -97,11 +100,14 @@ export async function recordPurchase(input: PurchaseInput) {
 }
 
 export async function getRecentPurchases() {
-  await requireRole([Role.OWNER]);
+  const session = await requireRole([Role.OWNER]);
 
-  // Retrieve stock in movements linked to purchases
+  // Retrieve stock in movements linked to purchases scoped to store
   return await prisma.stockMovement.findMany({
-    where: { type: MovementType.IN },
+    where: {
+      storeId: session.storeId,
+      type: MovementType.IN,
+    },
     include: {
       product: true,
       createdBy: {

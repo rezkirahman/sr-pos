@@ -26,12 +26,20 @@ export async function loginAction(input: LoginInput): Promise<AuthActionResult> 
   try {
     const user = await prisma.user.findUnique({
       where: { username },
+      include: { store: true },
     });
 
     if (!user) {
       return {
         success: false,
         error: "Username atau password salah",
+      };
+    }
+
+    if (!user.store || !user.store.isActive) {
+      return {
+        success: false,
+        error: "Toko atau akun Anda sedang dinonaktifkan",
       };
     }
 
@@ -48,6 +56,8 @@ export async function loginAction(input: LoginInput): Promise<AuthActionResult> 
       name: user.name,
       username: user.username,
       role: user.role,
+      storeId: user.storeId,
+      storeName: user.store.name,
     });
 
     const redirectUrl = user.role === Role.OWNER ? "/dashboard" : "/pos";

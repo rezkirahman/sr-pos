@@ -13,6 +13,7 @@ export async function getDebtsSummary() {
 
   const allUnpaid = await prisma.debtReceivable.findMany({
     where: {
+      storeId: session.storeId,
       status: { in: [DebtStatus.UNPAID, DebtStatus.PARTIAL] },
     },
   });
@@ -47,7 +48,10 @@ export async function getDebts(type: DebtType) {
   }
 
   return await prisma.debtReceivable.findMany({
-    where: { type },
+    where: {
+      storeId: session.storeId,
+      type,
+    },
     include: {
       transaction: true,
       payments: {
@@ -77,12 +81,15 @@ export async function recordDebtPayment(
   }
 
   const result = await prisma.$transaction(async (tx) => {
-    const debt = await tx.debtReceivable.findUnique({
-      where: { id: debtId },
+    const debt = await tx.debtReceivable.findFirst({
+      where: {
+        id: debtId,
+        storeId: session.storeId,
+      },
     });
 
     if (!debt) {
-      throw new Error("Data tagihan tidak ditemukan.");
+      throw new Error("Data tagihan tidak ditemukan di toko ini.");
     }
 
     if (amount > debt.remainingAmount) {
@@ -121,6 +128,7 @@ export async function recordDebtPayment(
       // Toko menerima uang kas (INCOME)
       await tx.cashFlow.create({
         data: {
+          storeId: session.storeId,
           type: CashFlowType.INCOME,
           category: "Pelunasan Piutang",
           amount,
@@ -133,6 +141,7 @@ export async function recordDebtPayment(
       // Toko membayar uang keluar ke supplier (EXPENSE)
       await tx.cashFlow.create({
         data: {
+          storeId: session.storeId,
           type: CashFlowType.EXPENSE,
           category: "Bayar Hutang Supplier",
           amount,

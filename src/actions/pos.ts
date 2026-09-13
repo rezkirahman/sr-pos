@@ -16,10 +16,10 @@ export async function checkoutTransaction(input: CheckoutInput) {
 
   // Perform ACID transaction
   const result = await prisma.$transaction(async (tx) => {
-    // 1. Fetch & Validate stock availability
+    // 1. Fetch & Validate stock availability (scoped to store)
     const productIds = parsed.items.map((i) => i.productId);
     const dbProducts = await tx.product.findMany({
-      where: { id: { in: productIds } },
+      where: { id: { in: productIds }, storeId: session.storeId },
     });
 
     const productMap = new Map(dbProducts.map((p) => [p.id, p]));
@@ -27,7 +27,7 @@ export async function checkoutTransaction(input: CheckoutInput) {
     for (const item of parsed.items) {
       const dbProd = productMap.get(item.productId);
       if (!dbProd) {
-        throw new Error(`Barang "${item.name}" tidak ditemukan di database`);
+        throw new Error(`Barang "${item.name}" tidak ditemukan di database toko Anda`);
       }
       if (dbProd.stock < item.quantity) {
         throw new Error(
@@ -36,7 +36,7 @@ export async function checkoutTransaction(input: CheckoutInput) {
       }
     }
 
-    // 2. Generate Invoice Number: INV-YYYYMMDD-XXXX
+    // 2. Generate Invoice Number per Store: INV-YYYYMMDD-XXXX
     const now = new Date();
     const yyyy = now.getFullYear();
     const mm = String(now.getMonth() + 1).padStart(2, "0");
@@ -45,6 +45,7 @@ export async function checkoutTransaction(input: CheckoutInput) {
 
     const todayCount = await tx.transaction.count({
       where: {
+        storeId: session.storeId,
         invoiceNumber: {
           startsWith: datePrefix,
         },
@@ -68,6 +69,7 @@ export async function checkoutTransaction(input: CheckoutInput) {
     // 4. Create Transaction Record
     const transaction = await tx.transaction.create({
       data: {
+        storeId: session.storeId,
         invoiceNumber,
         customerName: parsed.customerName || null,
         paymentType: parsed.paymentType,
@@ -107,6 +109,7 @@ export async function checkoutTransaction(input: CheckoutInput) {
 
       await tx.stockMovement.create({
         data: {
+          storeId: session.storeId,
           productId: item.productId,
           type: MovementType.OUT,
           quantity: item.quantity,
@@ -124,6 +127,7 @@ export async function checkoutTransaction(input: CheckoutInput) {
       // Record CashFlow INCOME
       await tx.cashFlow.create({
         data: {
+          storeId: session.storeId,
           type: CashFlowType.INCOME,
           category: "Penjualan",
           amount: totalAmount,
@@ -140,6 +144,7 @@ export async function checkoutTransaction(input: CheckoutInput) {
 
       await tx.debtReceivable.create({
         data: {
+          storeId: session.storeId,
           type: DebtType.RECEIVABLE,
           contactName: parsed.customerName!,
           contactPhone: parsed.customerPhone || null,

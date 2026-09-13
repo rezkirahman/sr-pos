@@ -1,40 +1,58 @@
-import { PrismaClient, Role, PaymentType, MovementType } from "@prisma/client";
+import { PrismaClient, Role, MovementType } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("Seeding database...");
+  console.log("Seeding multi-tenant database for 5 stores...");
 
-  // 1. Create Default Users (Owner & Cashier)
-  const passwordOwner = await bcrypt.hash("owner123", 10);
-  const owner = await prisma.user.upsert({
-    where: { username: "owner" },
-    update: {},
-    create: {
-      name: "Bambang (Pemilik Toko)",
-      username: "owner",
-      passwordHash: passwordOwner,
-      role: Role.OWNER,
+  const defaultPassword = await bcrypt.hash("owner123", 10);
+  const cashierPassword = await bcrypt.hash("kasir123", 10);
+
+  const storesData = [
+    {
+      code: "TK01",
+      name: "Toko Cat Sumber Rejeki",
+      address: "Jl. Raya Veteran No. 12",
+      phone: "0812-3456-7890",
+      owner: { name: "Bambang (Pemilik)", username: "owner" },
+      cashier: { name: "Siti Rahma (Kasir)", username: "kasir" },
     },
-  });
-
-  const passwordKasir = await bcrypt.hash("kasir123", 10);
-  const kasir = await prisma.user.upsert({
-    where: { username: "kasir" },
-    update: {},
-    create: {
-      name: "Siti Rahma (Kasir)",
-      username: "kasir",
-      passwordHash: passwordKasir,
-      role: Role.CASHIER,
+    {
+      code: "TK02",
+      name: "TB Berkah Abadi",
+      address: "Jl. Ahmad Yani No. 45",
+      phone: "0813-9876-5432",
+      owner: { name: "H. Ahmad (Pemilik)", username: "owner2" },
+      cashier: { name: "Budi Santoso (Kasir)", username: "kasir2" },
     },
-  });
+    {
+      code: "TK03",
+      name: "Toko Cat Makmur Sentosa",
+      address: "Jl. Pahlawan No. 88",
+      phone: "0811-2233-4455",
+      owner: { name: "Hendra Wijaya (Pemilik)", username: "owner3" },
+      cashier: { name: "Dewi Lestari (Kasir)", username: "kasir3" },
+    },
+    {
+      code: "TK04",
+      name: "TB Maju Bersama",
+      address: "Jl. Sudirman No. 201",
+      phone: "0821-5566-7788",
+      owner: { name: "Joko Susilo (Pemilik)", username: "owner4" },
+      cashier: { name: "Agus Pratama (Kasir)", username: "kasir4" },
+    },
+    {
+      code: "TK05",
+      name: "Kharisma Paint Center",
+      address: "Jl. Diponegoro No. 15",
+      phone: "0852-3344-5566",
+      owner: { name: "Rina Kusuma (Pemilik)", username: "owner5" },
+      cashier: { name: "Fitri Handayani (Kasir)", username: "kasir5" },
+    },
+  ];
 
-  console.log(`Users seeded: ${owner.username}, ${kasir.username}`);
-
-  // 2. Create Products
-  const sampleProducts = [
+  const sampleCatalog = [
     {
       sku: "CAT-VNLX-005",
       name: "Cat Tembok Vinilex 5 Kg Brilliant White",
@@ -157,31 +175,91 @@ async function main() {
     },
   ];
 
-  for (const prod of sampleProducts) {
-    const existing = await prisma.product.findUnique({
-      where: { sku: prod.sku },
+  for (const s of storesData) {
+    // 1. Create / Upsert Store
+    const store = await prisma.store.upsert({
+      where: { code: s.code },
+      update: {
+        name: s.name,
+        address: s.address,
+        phone: s.phone,
+      },
+      create: {
+        code: s.code,
+        name: s.name,
+        address: s.address,
+        phone: s.phone,
+      },
     });
-    if (!existing) {
-      const created = await prisma.product.create({
-        data: prod,
-      });
 
-      // Record initial stock movement
-      await prisma.stockMovement.create({
-        data: {
-          productId: created.id,
-          type: MovementType.IN,
-          quantity: prod.stock,
-          stockBefore: 0,
-          stockAfter: prod.stock,
-          notes: "Inisialisasi stok awal sistem",
-          createdById: owner.id,
+    // 2. Create / Upsert Users for this Store
+    const ownerUser = await prisma.user.upsert({
+      where: { username: s.owner.username },
+      update: {
+        storeId: store.id,
+      },
+      create: {
+        storeId: store.id,
+        name: s.owner.name,
+        username: s.owner.username,
+        passwordHash: defaultPassword,
+        role: Role.OWNER,
+      },
+    });
+
+    await prisma.user.upsert({
+      where: { username: s.cashier.username },
+      update: {
+        storeId: store.id,
+      },
+      create: {
+        storeId: store.id,
+        name: s.cashier.name,
+        username: s.cashier.username,
+        passwordHash: cashierPassword,
+        role: Role.CASHIER,
+      },
+    });
+
+    console.log(`Store [${store.code}] ${store.name} seeded with users: ${s.owner.username}, ${s.cashier.username}`);
+
+    // 3. Create Sample Products for this Store
+    for (const prod of sampleCatalog) {
+      const existingProduct = await prisma.product.findUnique({
+        where: {
+          storeId_sku: {
+            storeId: store.id,
+            sku: prod.sku,
+          },
         },
       });
+
+      if (!existingProduct) {
+        const created = await prisma.product.create({
+          data: {
+            ...prod,
+            storeId: store.id,
+          },
+        });
+
+        // Record initial stock movement
+        await prisma.stockMovement.create({
+          data: {
+            storeId: store.id,
+            productId: created.id,
+            type: MovementType.IN,
+            quantity: prod.stock,
+            stockBefore: 0,
+            stockAfter: prod.stock,
+            notes: `Inisialisasi stok awal toko ${store.name}`,
+            createdById: ownerUser.id,
+          },
+        });
+      }
     }
   }
 
-  console.log("Sample products seeded with initial stock movements.");
+  console.log("All 5 stores and their catalogs seeded successfully!");
 }
 
 main()

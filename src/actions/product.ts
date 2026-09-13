@@ -19,6 +19,7 @@ export async function getProducts(options?: {
   const { search, category, filter = "all" } = options || {};
 
   const whereClause: any = {
+    storeId: session.storeId,
     isActive: true,
   };
 
@@ -27,9 +28,13 @@ export async function getProducts(options?: {
   }
 
   if (search && search.trim() !== "") {
-    whereClause.OR = [
-      { name: { contains: search, mode: "insensitive" } },
-      { sku: { contains: search, mode: "insensitive" } },
+    whereClause.AND = [
+      {
+        OR: [
+          { name: { contains: search, mode: "insensitive" } },
+          { sku: { contains: search, mode: "insensitive" } },
+        ],
+      },
     ];
   }
 
@@ -64,6 +69,7 @@ export async function createProduct(input: CreateProductInput) {
   const product = await prisma.$transaction(async (tx) => {
     const created = await tx.product.create({
       data: {
+        storeId: session.storeId,
         sku: parsed.sku || null,
         name: parsed.name,
         category: parsed.category,
@@ -79,6 +85,7 @@ export async function createProduct(input: CreateProductInput) {
     if (parsed.stock > 0) {
       await tx.stockMovement.create({
         data: {
+          storeId: session.storeId,
           productId: created.id,
           type: MovementType.IN,
           quantity: parsed.stock,
@@ -99,7 +106,15 @@ export async function createProduct(input: CreateProductInput) {
 }
 
 export async function updateProduct(id: string, input: Partial<CreateProductInput>) {
-  await requireRole([Role.OWNER]);
+  const session = await requireRole([Role.OWNER]);
+
+  const existing = await prisma.product.findFirst({
+    where: { id, storeId: session.storeId },
+  });
+
+  if (!existing) {
+    throw new Error("Barang tidak ditemukan di toko ini");
+  }
 
   const updated = await prisma.product.update({
     where: { id },
@@ -125,12 +140,12 @@ export async function adjustStock(input: StockAdjustmentInput) {
   const parsed = stockAdjustmentSchema.parse(input);
 
   const result = await prisma.$transaction(async (tx) => {
-    const product = await tx.product.findUnique({
-      where: { id: parsed.productId },
+    const product = await tx.product.findFirst({
+      where: { id: parsed.productId, storeId: session.storeId },
     });
 
     if (!product) {
-      throw new Error("Barang tidak ditemukan");
+      throw new Error("Barang tidak ditemukan di toko ini");
     }
 
     const stockBefore = product.stock;
@@ -144,6 +159,7 @@ export async function adjustStock(input: StockAdjustmentInput) {
 
     await tx.stockMovement.create({
       data: {
+        storeId: session.storeId,
         productId: product.id,
         type: MovementType.ADJUSTMENT,
         quantity: Math.abs(diff),
@@ -169,7 +185,7 @@ export async function getStockMovements(productId: string) {
   }
 
   return await prisma.stockMovement.findMany({
-    where: { productId },
+    where: { productId, storeId: session.storeId },
     include: {
       createdBy: {
         select: { name: true, role: true },
@@ -181,7 +197,11 @@ export async function getStockMovements(productId: string) {
 }
 
 export async function getCategories(): Promise<string[]> {
+  const session = await getSession();
+  if (!session) return [];
+
   const products = await prisma.product.findMany({
+    where: { storeId: session.storeId },
     select: { category: true },
     distinct: ["category"],
     orderBy: { category: "asc" },

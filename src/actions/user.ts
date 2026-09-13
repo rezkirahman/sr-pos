@@ -7,9 +7,10 @@ import { Role } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 export async function getUsers() {
-  await requireRole([Role.OWNER]);
+  const session = await requireRole([Role.OWNER]);
 
   return await prisma.user.findMany({
+    where: { storeId: session.storeId },
     select: {
       id: true,
       name: true,
@@ -22,7 +23,7 @@ export async function getUsers() {
 }
 
 export async function createUser(input: CreateUserInput) {
-  await requireRole([Role.OWNER]);
+  const session = await requireRole([Role.OWNER]);
   const parsed = createUserSchema.parse(input);
 
   const existing = await prisma.user.findUnique({
@@ -37,6 +38,7 @@ export async function createUser(input: CreateUserInput) {
 
   const user = await prisma.user.create({
     data: {
+      storeId: session.storeId,
       name: parsed.name,
       username: parsed.username,
       passwordHash: hashedPassword,
@@ -56,8 +58,16 @@ export async function createUser(input: CreateUserInput) {
 }
 
 export async function resetUserPassword(input: ResetPasswordInput) {
-  await requireRole([Role.OWNER]);
+  const session = await requireRole([Role.OWNER]);
   const parsed = resetPasswordSchema.parse(input);
+
+  const existing = await prisma.user.findFirst({
+    where: { id: parsed.userId, storeId: session.storeId },
+  });
+
+  if (!existing) {
+    throw new Error("Pengguna tidak ditemukan di toko ini.");
+  }
 
   const hashedPassword = await hashPassword(parsed.newPassword);
 
@@ -75,6 +85,14 @@ export async function deleteUser(id: string) {
 
   if (session.id === id) {
     throw new Error("Anda tidak dapat menghapus akun Anda sendiri.");
+  }
+
+  const existing = await prisma.user.findFirst({
+    where: { id, storeId: session.storeId },
+  });
+
+  if (!existing) {
+    throw new Error("Pengguna tidak ditemukan di toko ini.");
   }
 
   await prisma.user.delete({

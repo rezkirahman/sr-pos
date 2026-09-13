@@ -40,8 +40,27 @@ enum CashFlowType {
   EXPENSE
 }
 
+model Store {
+  id              String            @id @default(cuid())
+  name            String
+  code            String            @unique // e.g. "TK01", "TK02"
+  address         String?
+  phone           String?
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  users           User[]
+  products        Product[]
+  transactions    Transaction[]
+  stockMovements  StockMovement[]
+  cashFlows       CashFlow[]
+  debtReceivables DebtReceivable[]
+}
+
 model User {
   id           String          @id @default(cuid())
+  storeId      String
+  store        Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
   name         String
   username     String          @unique
   passwordHash String
@@ -51,11 +70,15 @@ model User {
   transactions Transaction[]
   movements    StockMovement[]
   cashFlows    CashFlow[]
+
+  @@index([storeId])
 }
 
 model Product {
   id            String            @id @default(cuid())
-  sku           String?           @unique
+  storeId       String
+  store         Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  sku           String?
   name          String
   category      String
   unit          String            // Kaleng, Galon, Pail, Sak, Dus, Pcs, Meter
@@ -68,10 +91,15 @@ model Product {
   updatedAt     DateTime          @updatedAt
   items         TransactionItem[]
   movements     StockMovement[]
+
+  @@unique([storeId, sku])
+  @@index([storeId])
 }
 
 model StockMovement {
   id          String       @id @default(cuid())
+  storeId     String
+  store       Store        @relation(fields: [storeId], references: [id], onDelete: Cascade)
   productId   String
   product     Product      @relation(fields: [productId], references: [id])
   type        MovementType // IN, OUT, ADJUSTMENT
@@ -83,11 +111,15 @@ model StockMovement {
   createdById String
   createdBy   User         @relation(fields: [createdById], references: [id])
   createdAt   DateTime     @default(now())
+
+  @@index([storeId])
 }
 
 model Transaction {
   id             String            @id @default(cuid())
-  invoiceNumber  String            @unique
+  storeId        String
+  store          Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  invoiceNumber  String
   customerName   String?
   paymentType    PaymentType
   totalAmount    Float
@@ -98,6 +130,9 @@ model Transaction {
   createdAt      DateTime          @default(now())
   items          TransactionItem[]
   debtReceivable DebtReceivable?
+
+  @@unique([storeId, invoiceNumber])
+  @@index([storeId])
 }
 
 model TransactionItem {
@@ -114,6 +149,8 @@ model TransactionItem {
 
 model CashFlow {
   id          String       @id @default(cuid())
+  storeId     String
+  store       Store        @relation(fields: [storeId], references: [id], onDelete: Cascade)
   type        CashFlowType // INCOME, EXPENSE
   category    String       // Penjualan, Operasional, Kulakan, Pelunasan
   amount      Float
@@ -122,10 +159,14 @@ model CashFlow {
   createdById String
   createdBy   User         @relation(fields: [createdById], references: [id])
   createdAt   DateTime     @default(now())
+
+  @@index([storeId])
 }
 
 model DebtReceivable {
   id              String        @id @default(cuid())
+  storeId         String
+  store           Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
   type            DebtType      // RECEIVABLE (Piutang) atau DEBT (Hutang Toko)
   contactName     String        // Nama Tukang / Nama Supplier
   contactPhone    String?
@@ -140,6 +181,8 @@ model DebtReceivable {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   payments        DebtPayment[]
+
+  @@index([storeId])
 }
 
 model DebtPayment {

@@ -14,6 +14,7 @@ export async function createExpense(input: ExpenseInput) {
 
   const created = await prisma.cashFlow.create({
     data: {
+      storeId: session.storeId,
       type: CashFlowType.EXPENSE,
       category: parsed.category,
       amount: parsed.amount,
@@ -30,9 +31,11 @@ export async function createExpense(input: ExpenseInput) {
 }
 
 export async function getCashFlowLedger(startDate?: string, endDate?: string) {
-  await requireRole([Role.OWNER]);
+  const session = await requireRole([Role.OWNER]);
 
-  const whereClause: any = {};
+  const whereClause: any = {
+    storeId: session.storeId,
+  };
 
   if (startDate || endDate) {
     whereClause.createdAt = {};
@@ -59,7 +62,7 @@ export async function getCashFlowLedger(startDate?: string, endDate?: string) {
 }
 
 export async function getCashFlowSummary(startDate?: string, endDate?: string) {
-  await requireRole([Role.OWNER]);
+  const session = await requireRole([Role.OWNER]);
 
   const dateFilter: any = {};
   if (startDate) {
@@ -73,9 +76,12 @@ export async function getCashFlowSummary(startDate?: string, endDate?: string) {
 
   const hasDateFilter = startDate || endDate;
 
-  // 1. Fetch cash flow entries
+  // 1. Fetch cash flow entries scoped to store
   const cashFlows = await prisma.cashFlow.findMany({
-    where: hasDateFilter ? { createdAt: dateFilter } : undefined,
+    where: {
+      storeId: session.storeId,
+      ...(hasDateFilter ? { createdAt: dateFilter } : {}),
+    },
   });
 
   const totalIncome = cashFlows
@@ -88,15 +94,14 @@ export async function getCashFlowSummary(startDate?: string, endDate?: string) {
 
   const netCashFlow = totalIncome - totalExpense;
 
-  // 2. Calculate Gross Profit from TransactionItems (Sell Price - HPP Snapshot)
+  // 2. Calculate Gross Profit from TransactionItems scoped to store (Sell Price - HPP Snapshot)
   const transactionItems = await prisma.transactionItem.findMany({
-    where: hasDateFilter
-      ? {
-          transaction: {
-            createdAt: dateFilter,
-          },
-        }
-      : undefined,
+    where: {
+      transaction: {
+        storeId: session.storeId,
+        ...(hasDateFilter ? { createdAt: dateFilter } : {}),
+      },
+    },
     select: {
       quantity: true,
       unitPrice: true,

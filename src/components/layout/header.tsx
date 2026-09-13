@@ -6,13 +6,15 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { logoutAction } from "@/actions/auth";
-import { LogOut, User as UserIcon } from "lucide-react";
+import { LogOut, User as UserIcon, Store as StoreIcon } from "lucide-react";
 
 interface HeaderProps {
   user: {
     name: string;
     username: string;
     role: Role;
+    storeId?: string;
+    storeName?: string;
   };
 }
 
@@ -28,7 +30,16 @@ export function Header({ user }: HeaderProps) {
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-card/80 backdrop-blur px-4 md:px-6">
       <div className="flex items-center gap-3">
         <MobileNav role={user.role} />
-        <div className="hidden sm:block">
+        
+        {/* Active Store Badge */}
+        {user.storeName && (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border bg-primary/10 text-primary font-semibold text-xs shadow-xs">
+            <StoreIcon className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate max-w-[130px] sm:max-w-[220px]">{user.storeName}</span>
+          </div>
+        )}
+
+        <div className="hidden lg:block">
           <span className="text-xs text-muted-foreground capitalize">{currentDate}</span>
         </div>
       </div>

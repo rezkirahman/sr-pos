@@ -14,6 +14,8 @@ export interface SessionUser {
   name: string;
   username: string;
   role: Role;
+  storeId: string;
+  storeName: string;
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -45,6 +47,8 @@ export async function verifySessionToken(
       name: payload.name as string,
       username: payload.username as string,
       role: payload.role as Role,
+      storeId: payload.storeId as string,
+      storeName: payload.storeName as string,
     };
   } catch {
     return null;

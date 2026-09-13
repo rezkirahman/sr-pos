@@ -45,6 +45,9 @@ export async function verifySessionToken(
 ): Promise<SessionUser | null> {
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET);
+    if (!payload.roleCode || !payload.roleId) {
+      return null;
+    }
     return {
       id: payload.id as string,
       name: payload.name as string,

@@ -29,13 +29,26 @@ export async function middleware(request: NextRequest) {
     permissions?: Array<{ module: string; canView: boolean }>;
   } | null = null;
 
+  let isLegacyToken = false;
   if (token) {
     try {
       const { payload } = await jwtVerify(token, JWT_SECRET);
-      session = payload as any;
+      if (!payload.roleCode || !payload.roleId) {
+        // Token lama sebelum update RBAC
+        isLegacyToken = true;
+        session = null;
+      } else {
+        session = payload as any;
+      }
     } catch {
       session = null;
     }
+  }
+
+  if (isLegacyToken) {
+    const res = NextResponse.redirect(new URL("/login", request.url));
+    res.cookies.delete(COOKIE_SESSION_NAME);
+    return res;
   }
 
   const getDefaultRedirect = () => {
